@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.env
+/alembic/README
+/app.log
+.idea

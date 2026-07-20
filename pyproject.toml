@@ -1,5 +1,6 @@
 [tool.poetry]
 package-mode = false
+name = "animal"
 
 [project]
 name = "Animal"
@@ -49,6 +50,9 @@ pydantic = "^2.13.4"
 pydantic-settings = "^2.14.2"
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.51"}
 alembic = "^1.18.5"
+python = "^3.11"
+structlog = "^26.1.0"
+colorama = "^0.4.6"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.15"

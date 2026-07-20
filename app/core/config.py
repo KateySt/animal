@@ -6,6 +6,7 @@ class AppConfig(BaseSettings):
     APP_NAME: str = "animal-shelter"
     APP_ENV: str = "development"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
 
     model_config = SettingsConfigDict(
         env_file=".env",

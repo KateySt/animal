@@ -2,6 +2,7 @@ from uuid import UUID
 
 from app.core import NotFoundError
 from app.db.models.animal import Animal
+from app.db.models.health_log import HealthLog
 from app.repo import AnimalRepository
 from app.repo.health_log_repository import HealthLogRepository
 from app.schemas.animal import AnimalCreate
@@ -18,7 +19,7 @@ class AnimalService:
         raise NotFoundError(f"Animal with id {id} not found")
 
     async def create_animal_with_initial_health_log(self, payload: AnimalCreate) -> Animal:
-        animal = await self._animal_repo.create(payload.to_animal())
-        for health_log in payload.to_health_logs(animal.id):
-            await self._health_log_repo.create(health_log)
+        animal = await self._animal_repo.create(Animal(**payload.model_dump(exclude={"health_logs"})))
+        for log_data in payload.health_logs:
+            await self._health_log_repo.create(HealthLog(animal_id=animal.id, **log_data.model_dump()))
         return await self.get_animal_by_id(animal.id)

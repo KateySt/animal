@@ -1,8 +1,8 @@
 """
 
-Revision ID: cc3ec08f54ef_add_animal_and_log
-Revises:
-Create Date: 2026-07-20 12:26:03.552746
+Revision ID: d0e3d976f6ff_add_animal_and_log
+Revises: 
+Create Date: 2026-07-20 14:04:11.621490
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'cc3ec08f54ef_add_animal_and_log'
+revision: str = 'd0e3d976f6ff_add_animal_and_log'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -22,7 +22,7 @@ def upgrade() -> None:
     op.create_table('animals',
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('caretaker_notes', sa.String(length=255), nullable=True),
-    sa.Column('gender', sa.Enum('MALE', 'FEMALE', 'UNKNOWN', name='gender'), nullable=False),
+    sa.Column('gender', sa.Enum('male', 'female', 'unknown', name='gender'), nullable=False),
     sa.Column('birth_date', sa.Date(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),

@@ -57,6 +57,13 @@ Set `CORS_ORIGINS` env var and load it via `AppConfig`; never hardcode wildcard 
 - Boolean fields/properties: `is_` prefix (e.g. `is_query_logging_enabled`).
 - No comments unless the WHY is non-obvious.
 
+## Architecture
+Run `/arch` to check Clean Architecture layer violations before any PR:
+- Dependency rule: Models ← Repos ← Services ← Routers; Schemas are used by all layers but must never import ORM.
+- Schemas must not import or construct ORM instances (`to_animal()` on a Pydantic class = violation).
+- Multi-repo writes in one service method must be wrapped in `async with session.begin()`.
+- Routers must not import from `app.repo` or `app.db.models` directly.
+
 ## Review pipeline
 Run `/review` to trigger the full pipeline:
 `code-reviewer` → `dep-checker` + `logic-reviewer` (parallel) → `arbitrator` (if conflict).

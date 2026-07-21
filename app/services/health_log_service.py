@@ -1,48 +1,66 @@
+from typing import Any
 from uuid import UUID
 
+from fastcrud import compute_offset, paginated_response
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core import NotFoundError
-from app.db.models.health_log import HealthLog
-from app.repo.animal_repository import AnimalRepository
-from app.repo.health_log_repository import HealthLogRepository
-from app.schemas import PaginatedResult
-from app.schemas.animal import HealthLogCreate, HealthLogResponse, HealthLogUpdate
+from app.schemas.animal import HealthLogCreate, HealthLogInternalCreate, HealthLogResponse, HealthLogUpdate
+from app.db.models import animal_crud, health_log_crud
 
 
 class HealthLogService:
-    def __init__(self, health_log_repo: HealthLogRepository, animal_repo: AnimalRepository) -> None:
-        self._health_log_repo = health_log_repo
-        self._animal_repo = animal_repo
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
     async def _ensure_animal_exists(self, animal_id: UUID) -> None:
-        if not await self._animal_repo.get_by_id(animal_id):
+        if not await animal_crud.exists(self._session, id=animal_id):
             raise NotFoundError(f"Animal with id {animal_id} not found")
 
-    async def get_health_log_by_id(self, animal_id: UUID, health_log_id: UUID) -> HealthLog:
+    async def get_health_log_by_id(self, animal_id: UUID, health_log_id: UUID) -> HealthLogResponse:
         await self._ensure_animal_exists(animal_id)
-        log = await self._health_log_repo.get_by_id(health_log_id)
-        if log is None or log.animal_id != animal_id:
+        health_log = await health_log_crud.get(
+            self._session,
+            schema_to_select=HealthLogResponse,
+            return_as_model=True,
+            id=health_log_id,
+        )
+        if health_log is None or health_log.animal_id != animal_id:
             raise NotFoundError(f"HealthLog with id {health_log_id} not found for animal {animal_id}")
-        return log
+        return health_log
 
-    async def get_logs_paginated(self, animal_id: UUID, page: int, page_size: int) -> PaginatedResult[HealthLogResponse]:
+    async def get_logs_paginated(self, animal_id: UUID, page: int, items_per_page: int) -> dict[str, Any]:
         await self._ensure_animal_exists(animal_id)
-        return await self._health_log_repo.get_paginated(
-            page=page,
-            page_size=page_size,
-            filters={"animal_id": animal_id},
+        crud_data = await health_log_crud.get_multi(
+            self._session,
+            offset=compute_offset(page, items_per_page),
+            limit=items_per_page,
+            return_total_count=True,
+            schema_to_select=HealthLogResponse,
+            return_as_model=True,
+            animal_id=animal_id,
+        )
+        return paginated_response(crud_data=crud_data, page=page, items_per_page=items_per_page)
+
+    async def create_log(self, animal_id: UUID, payload: HealthLogCreate) -> HealthLogResponse:
+        await self._ensure_animal_exists(animal_id)
+        return await health_log_crud.create(
+            self._session,
+            HealthLogInternalCreate(animal_id=animal_id, **payload.model_dump()),
+            schema_to_select=HealthLogResponse,
+            return_as_model=True,
         )
 
-    async def create_log(self, animal_id: UUID, payload: HealthLogCreate) -> HealthLog:
-        await self._ensure_animal_exists(animal_id)
-        return await self._health_log_repo.create(HealthLog(animal_id=animal_id, **payload.model_dump()))
-
-    async def update_log(self, animal_id: UUID, health_log_id: UUID, payload: HealthLogUpdate) -> HealthLog:
+    async def update_log(self, animal_id: UUID, health_log_id: UUID, payload: HealthLogUpdate) -> HealthLogResponse:
         await self.get_health_log_by_id(animal_id, health_log_id)
-        updated = await self._health_log_repo.update(health_log_id, payload.model_dump(exclude_none=True))
-        if updated is None:
-            raise NotFoundError(f"HealthLog with id {health_log_id} not found")
-        return updated
+        return await health_log_crud.update(
+            self._session,
+            payload.model_dump(exclude_none=True),
+            schema_to_select=HealthLogResponse,
+            return_as_model=True,
+            id=health_log_id,
+        )
 
     async def delete_log(self, animal_id: UUID, health_log_id: UUID) -> None:
         await self.get_health_log_by_id(animal_id, health_log_id)
-        await self._health_log_repo.delete(health_log_id)
+        await health_log_crud.delete(self._session, id=health_log_id)

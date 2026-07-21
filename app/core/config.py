@@ -21,7 +21,7 @@ class DBConfig(BaseSettings):
     DB_PASSWORD: str
     DB_HOST: str
     DB_PORT: str
-    is_query_logging_enabled: bool = False
+    is_query_logging_enabled: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,59 +1,47 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastcrud import PaginatedListResponse
 
-from app.schemas import PaginatedResult
-from app.schemas.animal import AnimalCreate, AnimalResponse, AnimalUpdate
+from app.schemas.animal import AnimalCreate, AnimalResponse, AnimalWithHealthLogsResponse, AnimalUpdate
 from app.services import get_animal_service
 from app.services.animal_service import AnimalService
 
 router = APIRouter()
 
 
-@router.get("", response_model=PaginatedResult[AnimalResponse])
+@router.get("", response_model=PaginatedListResponse[AnimalResponse])
 async def get_animals(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    name: str | None = Query(None),
-    gender: str | None = Query(None),
-    order_by: list[str] = Query(default=[]),
+    items_per_page: int = Query(20, ge=1, le=100),
     service: AnimalService = Depends(get_animal_service),
-) -> PaginatedResult[AnimalResponse]:
-    filters: dict = {}
-    if name:
-        filters["name__like"] = name
-    if gender:
-        filters["gender"] = gender
-    return await service.get_animals_paginated(
-        page=page,
-        page_size=page_size,
-        filters=filters or None,
-        order_by=order_by or None
-    )
+) -> dict[str, Any]:
+    return await service.get_animals_paginated(page=page, items_per_page=items_per_page)
 
 
-@router.get("/{animal_id}", response_model=AnimalResponse)
+@router.get("/{animal_id}", response_model=AnimalWithHealthLogsResponse)
 async def get_animal(
     animal_id: UUID,
     service: AnimalService = Depends(get_animal_service),
-) -> AnimalResponse:
+) -> AnimalWithHealthLogsResponse:
     return await service.get_animal_by_id(animal_id)
 
 
-@router.post("", response_model=AnimalResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AnimalWithHealthLogsResponse, status_code=status.HTTP_201_CREATED)
 async def create_animal(
     payload: AnimalCreate,
     service: AnimalService = Depends(get_animal_service),
-) -> AnimalResponse:
+) -> AnimalWithHealthLogsResponse:
     return await service.create_animal_with_initial_health_log(payload)
 
 
-@router.patch("/{animal_id}", response_model=AnimalResponse)
+@router.patch("/{animal_id}", response_model=AnimalWithHealthLogsResponse)
 async def update_animal(
     animal_id: UUID,
     payload: AnimalUpdate,
     service: AnimalService = Depends(get_animal_service),
-) -> AnimalResponse:
+) -> AnimalWithHealthLogsResponse:
     return await service.update_animal(animal_id, payload)
 
 

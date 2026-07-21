@@ -11,6 +11,19 @@ class HealthLogCreate(BaseModel):
     examination_findings: str | None = None
 
 
+class HealthLogInternalCreate(BaseModel):
+    animal_id: uuid.UUID
+    procedure_name: str
+    examination_findings: str | None = None
+
+
+class AnimalInternalCreate(BaseModel):
+    name: str
+    gender: str
+    birth_date: datetime.date
+    caretaker_notes: str | None = None
+
+
 class HealthLogUpdate(BaseModel):
     procedure_name: str | None = None
     examination_findings: str | None = None
@@ -50,7 +63,9 @@ class AnimalResponse(BaseModel):
     gender: Gender
     birth_date: datetime.date
     caretaker_notes: str | None
-    age: int
-    health_logs: list[HealthLogResponse]
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class AnimalWithHealthLogsResponse(AnimalResponse):
+    health_logs: list[HealthLogResponse]

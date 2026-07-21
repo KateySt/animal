@@ -1,8 +1,9 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastcrud import PaginatedListResponse
 
-from app.schemas import PaginatedResult
 from app.schemas.animal import HealthLogCreate, HealthLogResponse, HealthLogUpdate
 from app.services import get_health_log_service
 from app.services.health_log_service import HealthLogService
@@ -10,14 +11,14 @@ from app.services.health_log_service import HealthLogService
 router = APIRouter()
 
 
-@router.get("", response_model=PaginatedResult[HealthLogResponse])
+@router.get("", response_model=PaginatedListResponse[HealthLogResponse])
 async def get_health_logs(
     animal_id: UUID,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    items_per_page: int = Query(20, ge=1, le=100),
     service: HealthLogService = Depends(get_health_log_service),
-) -> PaginatedResult[HealthLogResponse]:
-    return await service.get_logs_paginated(animal_id, page, page_size)
+) -> dict[str, Any]:
+    return await service.get_logs_paginated(animal_id, page, items_per_page)
 
 
 @router.get("/{log_id}", response_model=HealthLogResponse)

@@ -28,3 +28,6 @@ class RedisService:
 
     async def delete_cache(self, key: str) -> None:
         await self.redis.delete(key)
+
+
+redis_service = RedisService()

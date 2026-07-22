@@ -60,15 +60,11 @@ class AnimalService:
         return paginated_response(crud_data=crud_data, page=page, items_per_page=items_per_page)
 
     async def create_animal_with_initial_health_log(self, payload: AnimalCreate) -> AnimalResponse:
-        async with self._session.begin():
-            animal = Animal(**AnimalInternalCreate(**payload.model_dump(exclude={"health_logs"})).model_dump())
-            self._session.add(animal)
-            await self._session.flush()
-            log_schemas = [
-                HealthLogInternalCreate(animal_id=animal.id, **log.model_dump())
-                for log in payload.health_logs
-            ]
-            await health_log_crud.upsert_multi(self._session, log_schemas, commit=False)
+        animal = Animal(**AnimalInternalCreate(**payload.model_dump(exclude={"health_logs"})).model_dump())
+        self._session.add(animal)
+        await self._session.flush()
+        log_schemas = [HealthLogInternalCreate(animal_id=animal.id, **log.model_dump())for log in payload.health_logs]
+        await health_log_crud.upsert_multi(self._session, log_schemas, commit=False)
         return await self.get_animal_by_id(animal.id)
 
     async def update_animal(self, id: UUID, payload: AnimalUpdate) -> Animal:

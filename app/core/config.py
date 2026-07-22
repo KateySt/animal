@@ -36,12 +36,16 @@ class DBConfig(BaseSettings):
 
 
 class AuthConfig(BaseSettings):
-    JWT_SECRET: str
-    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_SECRET: str
     ACCESS_TOKEN_TIME_MINUTES: int = 30
-    REFRESH_TOKEN_TIME_MINUTES: int = 10080
+    RESET_PASSWORD_TOKEN_SECRET: str
+    VERIFICATION_TOKEN_SECRET: str
 
     ADMIN_SECRET: str
+
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

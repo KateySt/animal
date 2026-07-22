@@ -1,12 +1,13 @@
+from fastapi_users.db import SQLAlchemyUserDatabase
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette_admin.auth import AdminConfig, AdminUser, AuthProvider
 from starlette_admin.exceptions import FormValidationError
 
-from app.core.exceptions import CustomError
+from app.db.models.oauth_account import OAuthAccount
+from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
-from app.schemas import UserLogin
-from app.services.user_service import UserService
+from app.services.user_manager import UserManager
 
 
 class AdminAuthProvider(AuthProvider):
@@ -19,14 +20,14 @@ class AdminAuthProvider(AuthProvider):
         response: Response,
     ) -> Response:
         async with AsyncSessionLocal() as session:
-            service = UserService(session)
-            try:
-                await service.login(UserLogin(email=username, password=password))
-            except CustomError as error:
-                raise FormValidationError({"password": error.detail})
-            user = await service.get_by_email(username)
+            user_db = SQLAlchemyUserDatabase(session, User, OAuthAccount)
+            manager = UserManager(user_db)
+            credentials = type("Credentials", (), {"username": username, "password": password})()
+            user = await manager.authenticate(credentials)
+            if user is None or not user.is_active:
+                raise FormValidationError({"password": "Invalid credentials"})
 
-        request.session.update({"admin_username": user.email, "admin_name": user.name})
+        request.session.update({"admin_username": user.email, "admin_name": user.email})
         return response
 
     async def is_authenticated(self, request: Request) -> bool:

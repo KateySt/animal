@@ -1,27 +1,45 @@
 # Animal Shelter API — CLAUDE.md
 
 ## Stack
-FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL + Alembic + Pydantic v2 + Poetry. Python 3.11.
+FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL + Alembic + Pydantic v2 + Poetry + starlette-admin + python-jose + bcrypt. Python 3.11.
 
 ## Project layout
 ```
 app/
-  core/config.py        # AppConfig, DBConfig (pydantic-settings)
+  core/
+    config.py         # AppConfig, DBConfig, AuthConfig (pydantic-settings)
+    dependencies.py   # get_current_user (JWT → UserResponse)
+    exceptions.py     # CustomError hierarchy (NotFound, Unauthorized, AlreadyExists, …)
+    security.py       # hash_password, verify_password, create_access_token, create_refresh_token, decode_token
   db/
-    models/base.py      # DeclarativeBase + auto __tablename__
-    models/animal.py    # Animal model
-    models/health_log.py
-    mixins.py           # IDMixin (UUID PK), TimestampMixin
-    session.py          # engine, AsyncSessionLocal, get_db_session
-  repo/
-    base_repository.py  # generic CRUD + filter/sort/paginate
-    animal_repository.py
-    health_log_repository.py
-  schemas/animal.py     # AnimalCreate, AnimalResponse, HealthLog*
-  services/animal_service.py
-  routers/animal_router.py
+    enums.py          # Gender, TokenType (StrEnum)
+    models/
+      base.py         # DeclarativeBase + auto __tablename__
+      animal.py       # Animal model
+      health_log.py   # HealthLog model
+      user.py         # User model (name, email, hashed_password)
+      __init__.py     # FastCRUD instances: animal_crud, health_log_crud, user_crud
+    mixins.py         # IDMixin (UUID PK), TimestampMixin
+    session.py        # engine, AsyncSessionLocal, get_db_session
+  admin/
+    setup.py          # setup_admin(app) — mounts starlette-admin at /admin
+    auth.py           # AdminAuthProvider (session-cookie login via UserService)
+    views.py          # AnimalAdmin, HealthLogAdmin, UserAdmin (ModelView)
+  schemas/
+    animal.py         # AnimalCreate, AnimalResponse, HealthLog*
+    user.py           # UserRegister, UserLogin, UserResponse, UserWithPassword,
+                      # UserInternalCreate, TokenResponse
+  services/
+    animal_service.py
+    health_log_service.py
+    user_service.py   # register, login, refresh, get_by_email
+    __init__.py       # DI factories: get_animal_service, get_health_log_service, get_user_service
+  routers/
+    animal_router.py
+    health_log_router.py
+    auth_router.py    # POST /register, POST /login, POST /refresh, GET /me
   main.py
-alembic/                # migrations
+alembic/              # migrations
 tests/
 ```
 
@@ -36,16 +54,34 @@ Set `CORS_ORIGINS` env var and load it via `AppConfig`; never hardcode wildcard 
 1. Create `app/db/models/<name>.py` — inherit `Base, IDMixin, TimestampMixin`.
 2. Add FK with `ondelete="CASCADE"` where appropriate.
 3. Auto-tablename comes from `Base.__tablename__`; no need to set it manually.
-4. Create `app/repo/<name>_repository.py` extending `BaseRepository[Model]`.
+4. Register `FastCRUD(<Model>)` instance in `app/db/models/__init__.py`.
 5. Create Pydantic schemas in `app/schemas/`; always set `model_config = ConfigDict(from_attributes=True)` on response models.
 6. Add service in `app/services/`, DI factory in `app/services/__init__.py`.
 7. Add router in `app/routers/`, register in `main.py`.
-8. Generate migration: `alembic revision --autogenerate -m "add <name>"`.
+8. Register a `ModelView` subclass in `app/admin/views.py` and add it to `setup_admin()`.
+9. Generate migration: `alembic revision --autogenerate -m "add <name>"`.
 
 ### Adding a new endpoint
 - Router only does: parse input → call service → return response model. No DB logic in routers.
 - Always set `response_model=` explicitly — never return raw ORM objects.
 - Use `status.HTTP_201_CREATED` for POST, `status.HTTP_204_NO_CONTENT` for DELETE.
+- Protect endpoints that require auth with `user: UserResponse = Depends(get_current_user)`.
+
+### Auth flow
+- **Tokens**: JWT (HS256) via `python-jose`. Access token: 30 min. Refresh token: 7 days (10 080 min).
+- `create_access_token` / `create_refresh_token` in `app/core/security.py` embed `type` claim (`TokenType.access` / `TokenType.refresh`).
+- `get_current_user` dependency (`app/core/dependencies.py`) validates the token type; always check `payload["type"] == TokenType.access` before trusting a token as an access token.
+- **Admin panel** uses separate session-cookie auth (`AdminAuthProvider`) — it delegates to `UserService.login()` internally. Session secret lives in `AuthConfig.ADMIN_SECRET`.
+- Passwords are hashed with bcrypt. Never store plain-text passwords; always use `hash_password` / `verify_password`.
+
+### Exceptions
+Use `app.core.exceptions` — never raise bare `HTTPException` from services:
+- `NotFoundError` → 404
+- `UnauthorizedError` → 401
+- `ForbiddenError` → 403
+- `AlreadyExistsError` → 409
+- `BadRequestError` → 400
+- `ValidationError` → 422
 
 ### Migrations
 - Always review autogenerated migration before applying — check for missing `server_default`, wrong types.
@@ -59,10 +95,11 @@ Set `CORS_ORIGINS` env var and load it via `AppConfig`; never hardcode wildcard 
 
 ## Architecture
 Run `/arch` to check Clean Architecture layer violations before any PR:
-- Dependency rule: Models ← Repos ← Services ← Routers; Schemas are used by all layers but must never import ORM.
-- Schemas must not import or construct ORM instances (`to_animal()` on a Pydantic class = violation).
-- Multi-repo writes in one service method must be wrapped in `async with session.begin()`.
-- Routers must not import from `app.repo` or `app.db.models` directly.
+- Dependency rule: Models ← FastCRUD instances ← Services ← Routers; Schemas are used by all layers but must never import ORM.
+- Schemas must not import or construct ORM instances.
+- Multi-model writes in one service method must be wrapped in `async with session.begin()`.
+- Routers must not import from `app.db.models` or call `*_crud` directly — go through a service.
+- Admin views (`app/admin/`) may import models directly for `starlette-admin` registration; this is the only layer allowed to do so outside of `app/db/models/__init__.py`.
 
 ## Review pipeline
 Run `/review` to trigger the full pipeline:
@@ -74,3 +111,4 @@ Arbitrator priority: Security > Correctness > minimal blast radius > defer non-b
 - Run locally: `uvicorn app.main:app --reload`.
 - DB: PostgreSQL via Docker (`docker/docker-compose.yml`).
 - Secrets in `.env` (never commit); see `.env.sample`.
+- Required env vars: `DB_*`, `JWT_SECRET`, `ADMIN_SECRET` (see `AuthConfig`).

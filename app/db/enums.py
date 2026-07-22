@@ -2,6 +2,11 @@ from enum import StrEnum
 
 
 class Gender(StrEnum):
-    MALE = "male"
-    FEMALE = "female"
-    UNKNOWN = "unknown"
+    male = "male"
+    female = "female"
+    unknown = "unknown"
+
+
+class TokenType(StrEnum):
+    access = "access"
+    refresh = "refresh"

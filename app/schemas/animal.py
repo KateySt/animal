@@ -65,7 +65,4 @@ class AnimalResponse(BaseModel):
     caretaker_notes: str | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-
-
-class AnimalWithHealthLogsResponse(AnimalResponse):
-    health_logs: list[HealthLogResponse]
+    health_logs: list[HealthLogResponse] = []

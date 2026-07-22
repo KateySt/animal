@@ -7,7 +7,7 @@ from app.core.config import db_config
 
 engine = create_async_engine(
     db_config.async_database_url,
-    echo=db_config.is_query_logging_enabled,
+    echo=db_config.DB_ECHO,
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,

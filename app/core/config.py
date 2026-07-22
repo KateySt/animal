@@ -21,7 +21,7 @@ class DBConfig(BaseSettings):
     DB_PASSWORD: str
     DB_HOST: str
     DB_PORT: str
-    is_query_logging_enabled: bool = True
+    DB_ECHO: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -35,5 +35,35 @@ class DBConfig(BaseSettings):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
+class AuthConfig(BaseSettings):
+    JWT_SECRET: str
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_TIME_MINUTES: int = 30
+    REFRESH_TOKEN_TIME_MINUTES: int = 10080
+
+    ADMIN_SECRET: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",
+    )
+
+
+class RedisConfig(BaseSettings):
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_USER: str
+    REDIS_PASSWORD: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",
+    )
+
+
 app_config = AppConfig()
 db_config = DBConfig()
+auth_config = AuthConfig()
+redis_config = RedisConfig()

@@ -24,7 +24,7 @@ class AdminAuthProvider(AuthProvider):
             manager = UserManager(user_db)
             credentials = type("Credentials", (), {"username": username, "password": password})()
             user = await manager.authenticate(credentials)
-            if user is None or not user.is_active:
+            if user is None or not user.is_active or not user.is_superuser:
                 raise FormValidationError({"password": "Invalid credentials"})
 
         request.session.update({"admin_username": user.email, "admin_name": user.email})

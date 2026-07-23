@@ -4,6 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from fastcrud import PaginatedListResponse
 
+from app.core.dependencies import require_permission
+from app.db import Policy
+from app.db.models import HealthLog
 from app.schemas.animal import HealthLogCreate, HealthLogResponse, HealthLogUpdate
 from app.services import get_health_log_service
 from app.services.health_log_service import HealthLogService
@@ -17,6 +20,7 @@ async def get_health_logs(
     page: int = Query(1, ge=1),
     items_per_page: int = Query(20, ge=1, le=100),
     service: HealthLogService = Depends(get_health_log_service),
+    _=Depends(require_permission(HealthLog.subject(), Policy.read)),
 ) -> dict[str, Any]:
     return await service.get_logs_paginated(animal_id, page, items_per_page)
 
@@ -26,6 +30,7 @@ async def get_health_log(
     animal_id: UUID,
     health_log_id: UUID,
     service: HealthLogService = Depends(get_health_log_service),
+    _=Depends(require_permission(HealthLog.subject(), Policy.read)),
 ) -> HealthLogResponse:
     return await service.get_health_log_by_id(animal_id, health_log_id)
 
@@ -35,6 +40,7 @@ async def create_health_log(
     animal_id: UUID,
     payload: HealthLogCreate,
     service: HealthLogService = Depends(get_health_log_service),
+    _=Depends(require_permission(HealthLog.subject(), Policy.create)),
 ) -> HealthLogResponse:
     return await service.create_log(animal_id, payload)
 
@@ -45,6 +51,7 @@ async def update_health_log(
     health_log_id: UUID,
     payload: HealthLogUpdate,
     service: HealthLogService = Depends(get_health_log_service),
+    _=Depends(require_permission(HealthLog.subject(), Policy.update)),
 ) -> HealthLogResponse:
     return await service.update_log(animal_id, health_log_id, payload)
 
@@ -54,5 +61,6 @@ async def delete_health_log(
     animal_id: UUID,
     health_log_id: UUID,
     service: HealthLogService = Depends(get_health_log_service),
+    _=Depends(require_permission(HealthLog.subject(), Policy.delete)),
 ) -> None:
     await service.delete_log(animal_id, health_log_id)

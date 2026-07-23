@@ -4,6 +4,12 @@ from starlette_admin import PasswordField
 from starlette_admin.contrib.sqla import ModelView
 
 
+class PermissionAdmin(ModelView):
+    searchable_fields = ["role", "resource", "action"]
+    sortable_fields = ["role", "resource", "action", "created_at"]
+    fields_default_sort = [("role", False), ("resource", False)]
+
+
 class AnimalAdmin(ModelView):
     searchable_fields = ["name"]
 
@@ -17,6 +23,7 @@ class UserAdmin(ModelView):
         "id",
         "email",
         PasswordField("password", label="Password", required=False, help_text="Leave empty to keep current password"),
+        "role",
         "is_active",
         "is_verified",
         "is_superuser",
@@ -29,7 +36,7 @@ class UserAdmin(ModelView):
     exclude_fields_from_detail = ["password", "hashed_password"]
 
     searchable_fields = ["email"]
-    sortable_fields = ["email", "is_active", "is_verified", "is_superuser", "created_at"]
+    sortable_fields = ["email", "role", "is_active", "is_verified", "is_superuser", "created_at"]
     fields_default_sort = [("created_at", True)]
 
     async def before_create(self, request: Request, data: dict, obj: object) -> None:

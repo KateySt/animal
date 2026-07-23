@@ -29,6 +29,7 @@ def upgrade() -> None:
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column("role", sa.Enum("user", "admin", "staff", name="role"), nullable=False, server_default="user"),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_user_email'), 'user', ['email'], unique=True)
@@ -64,3 +65,4 @@ def downgrade() -> None:
     op.drop_table('oauth_account')
     op.drop_index(op.f('ix_user_email'), table_name='user')
     op.drop_table('user')
+    sa.Enum(name="role").drop(op.get_bind(), checkfirst=True)

@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("", response_model=PaginatedListResponse[AnimalResponse])
-@cache(expire=60)
+@cache(expire=60)#todo revalidate
 async def get_animals(
     page: int = Query(1, ge=1),
     items_per_page: int = Query(20, ge=1, le=100),
@@ -44,13 +44,13 @@ async def create_animal(
     return await service.create_animal_with_initial_health_log(payload)
 
 
-@router.patch("/{animal_id}", response_model=AnimalResponse)
+@router.patch("/{animal_id}", response_model=AnimalUpdate)
 async def update_animal(
     animal_id: UUID,
     payload: AnimalUpdate,
     service: AnimalService = Depends(get_animal_service),
     _=Depends(require_permission(Animal.subject(), Policy.update)),
-) -> AnimalResponse:
+) -> AnimalUpdate:
     return await service.update_animal(animal_id, payload)
 
 

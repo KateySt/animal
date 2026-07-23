@@ -1,47 +1,104 @@
 # Animal Shelter API — CLAUDE.md
 
 ## Stack
-FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL + Alembic + Pydantic v2 + Poetry + starlette-admin + python-jose + bcrypt. Python 3.11.
+FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL + Alembic + Pydantic v2 + Poetry + starlette-admin + fastapi-users + httpx-oauth + python-jose + bcrypt + Redis (fastapi-cache2). Python 3.11.
 
 ## Project layout
 ```
 app/
   core/
-    config.py         # AppConfig, DBConfig, AuthConfig (pydantic-settings)
-    dependencies.py   # get_current_user (JWT → UserResponse)
-    exceptions.py     # CustomError hierarchy (NotFound, Unauthorized, AlreadyExists, …)
-    security.py       # hash_password, verify_password, create_access_token, create_refresh_token, decode_token
+    config.py              # AppConfig, DBConfig, AuthConfig, RedisConfig (pydantic-settings)
+    dependencies.py        # require_permission(resource, policy), require_superuser
+    exceptions.py          # CustomError hierarchy (NotFound, Unauthorized, AlreadyExists, …)
+    security.py            # hash_password, verify_password (bcrypt helpers)
+    fastapi_users_setup.py # fastapi_users instance, current_active_user
+    google_oauth.py        # google_oauth_client (httpx-oauth GoogleOAuth2)
+    logger.py
   db/
-    enums.py          # Gender, TokenType (StrEnum)
+    enums.py          # Gender, Policy, Role (StrEnum)
     models/
       base.py         # DeclarativeBase + auto __tablename__
       animal.py       # Animal model
       health_log.py   # HealthLog model
-      user.py         # User model (name, email, hashed_password)
-      __init__.py     # FastCRUD instances: animal_crud, health_log_crud, user_crud
+      user.py         # User model (extends SQLAlchemyBaseUserTableUUID, adds role, oauth_accounts)
+      oauth_account.py# OAuthAccount (SQLAlchemyBaseOAuthAccountTableUUID)
+      permission.py   # Permission model (role, resource, action)
+      __init__.py     # FastCRUD instances: animal_crud, health_log_crud, permission_crud
     mixins.py         # IDMixin (UUID PK), TimestampMixin
     session.py        # engine, AsyncSessionLocal, get_db_session
   admin/
     setup.py          # setup_admin(app) — mounts starlette-admin at /admin
-    auth.py           # AdminAuthProvider (session-cookie login via UserService)
+    auth.py           # AdminAuthProvider (session-cookie login)
     views.py          # AnimalAdmin, HealthLogAdmin, UserAdmin (ModelView)
   schemas/
     animal.py         # AnimalCreate, AnimalResponse, HealthLog*
-    user.py           # UserRegister, UserLogin, UserResponse, UserWithPassword,
-                      # UserInternalCreate, TokenResponse
+    user.py           # UserRead, UserCreate, UserUpdate (fastapi-users schemas + role)
+    policy.py         # PermissionCreate, PermissionResponse
   services/
     animal_service.py
     health_log_service.py
-    user_service.py   # register, login, refresh, get_by_email
-    __init__.py       # DI factories: get_animal_service, get_health_log_service, get_user_service
+    permission_service.py  # list_permissions, add_permission, remove_permission
+    redis_service.py       # RedisService (asyncio redis pool, set/get/delete_cache); redis_service singleton
+    user_manager.py        # UserManager, get_user_manager, get_user_db, auth_backend (JWT)
+    __init__.py            # DI factories: get_animal_service, get_health_log_service,
+                           #               get_permission_service, get_redis_service
   routers/
     animal_router.py
     health_log_router.py
-    auth_router.py    # POST /register, POST /login, POST /refresh, GET /me
-  main.py
+    policy_router.py  # GET/POST /permissions, DELETE /permissions/{id} — superuser only
+  main.py             # lifespan (FastAPICache init + redis close), all routers + fastapi-users routers
 alembic/              # migrations
 tests/
 ```
+
+## Auth — fastapi-users (replaced hand-rolled JWT)
+The project now uses **fastapi-users** for all user auth. The old `auth_router.py` is gone.
+
+Registered routers (all under `/api`):
+| Prefix | Router |
+|---|---|
+| `/auth/jwt` | `get_auth_router` — `POST /login`, `POST /logout` |
+| `/auth` | `get_register_router` — `POST /register` |
+| `/auth` | `get_reset_password_router` |
+| `/auth` | `get_verify_router` |
+| `/auth/google` | `get_oauth_router` (Google OAuth2, associate_by_email=True) |
+| `/users` | `get_users_router` — CRUD on `/users/me`, `/users/{id}` |
+
+Key objects:
+- `auth_backend` — JWT via `BearerTransport` + `JWTStrategy` (secret: `AuthConfig.ACCESS_TOKEN_SECRET`, lifetime: `ACCESS_TOKEN_TIME_MINUTES * 60`)
+- `current_active_user` — `fastapi_users.current_user(active=True)` — use this in dependencies
+- `UserManager` — `UUIDIDMixin + BaseUserManager`; hooks: `on_after_register`, `on_after_forgot_password`, `on_after_request_verify`
+- `get_user_db` — yields `SQLAlchemyUserDatabase(session, User, OAuthAccount)`
+
+**User model** extends `SQLAlchemyBaseUserTableUUID` (gives `id, email, hashed_password, is_active, is_superuser, is_verified`) and adds:
+- `role: Role` (default `Role.user`)
+- `oauth_accounts: list[OAuthAccount]` (lazy="joined")
+
+**No** `user_crud` FastCRUD instance — user DB access goes through fastapi-users `SQLAlchemyUserDatabase`.
+
+## RBAC — Permission model
+`Permission(role, resource, action)` stores per-role allowances.
+
+- `Role`: `user | admin | staff`
+- `Policy` (action): `read | create | update | delete`
+- `require_permission(resource, policy)` — dependency factory; superusers bypass the check.
+- `require_superuser` — dependency; raises `ForbiddenError` if `user.is_superuser` is False.
+- Permission CRUD endpoints at `/permissions` are superuser-only.
+
+### Protecting an endpoint
+```python
+# role-based (checks Permission table)
+user = Depends(require_permission("animals", Policy.create))
+
+# superuser only
+_ = Depends(require_superuser)
+```
+
+## Redis + caching
+- `RedisService` (singleton `redis_service`) wraps `redis.asyncio` with a connection pool.
+- `fastapi-cache2` is initialised in `lifespan` with `RedisBackend(redis_service.redis)`, prefix `"fastapi-cache"`.
+- Cache is closed in lifespan teardown: `await redis_service.close()`.
+- Required env vars: `REDIS_HOST`, `REDIS_PORT`, `REDIS_USER`, `REDIS_PASSWORD`.
 
 ## Known bugs — never reintroduce
 
@@ -65,14 +122,7 @@ Set `CORS_ORIGINS` env var and load it via `AppConfig`; never hardcode wildcard 
 - Router only does: parse input → call service → return response model. No DB logic in routers.
 - Always set `response_model=` explicitly — never return raw ORM objects.
 - Use `status.HTTP_201_CREATED` for POST, `status.HTTP_204_NO_CONTENT` for DELETE.
-- Protect endpoints that require auth with `user: UserResponse = Depends(get_current_user)`.
-
-### Auth flow
-- **Tokens**: JWT (HS256) via `python-jose`. Access token: 30 min. Refresh token: 7 days (10 080 min).
-- `create_access_token` / `create_refresh_token` in `app/core/security.py` embed `type` claim (`TokenType.access` / `TokenType.refresh`).
-- `get_current_user` dependency (`app/core/dependencies.py`) validates the token type; always check `payload["type"] == TokenType.access` before trusting a token as an access token.
-- **Admin panel** uses separate session-cookie auth (`AdminAuthProvider`) — it delegates to `UserService.login()` internally. Session secret lives in `AuthConfig.ADMIN_SECRET`.
-- Passwords are hashed with bcrypt. Never store plain-text passwords; always use `hash_password` / `verify_password`.
+- Protect with `Depends(require_permission(...))` or `Depends(require_superuser)` — never `Depends(current_active_user)` directly in routers unless the endpoint truly needs no RBAC.
 
 ### Exceptions
 Use `app.core.exceptions` — never raise bare `HTTPException` from services:
@@ -99,6 +149,7 @@ Run `/arch` to check Clean Architecture layer violations before any PR:
 - Schemas must not import or construct ORM instances.
 - Multi-model writes in one service method must be wrapped in `async with session.begin()`.
 - Routers must not import from `app.db.models` or call `*_crud` directly — go through a service.
+- `app/core/dependencies.py` is allowed to call `permission_crud` directly (it is infrastructure glue, not a router).
 - Admin views (`app/admin/`) may import models directly for `starlette-admin` registration; this is the only layer allowed to do so outside of `app/db/models/__init__.py`.
 
 ## Review pipeline
@@ -111,4 +162,4 @@ Arbitrator priority: Security > Correctness > minimal blast radius > defer non-b
 - Run locally: `uvicorn app.main:app --reload`.
 - DB: PostgreSQL via Docker (`docker/docker-compose.yml`).
 - Secrets in `.env` (never commit); see `.env.sample`.
-- Required env vars: `DB_*`, `JWT_SECRET`, `ADMIN_SECRET` (see `AuthConfig`).
+- Required env vars: `DB_*`, `ACCESS_TOKEN_SECRET`, `RESET_PASSWORD_TOKEN_SECRET`, `VERIFICATION_TOKEN_SECRET`, `ADMIN_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `REDIS_*`.

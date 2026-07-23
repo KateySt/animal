@@ -5,8 +5,8 @@ from fastcrud import compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import NotFoundError
+from app.db.models import animal_crud, health_log_crud, HealthLog
 from app.schemas.animal import HealthLogCreate, HealthLogInternalCreate, HealthLogResponse, HealthLogUpdate
-from app.db.models import animal_crud, health_log_crud
 
 
 class HealthLogService:
@@ -17,15 +17,13 @@ class HealthLogService:
         if not await animal_crud.exists(self._session, id=animal_id):
             raise NotFoundError(f"Animal with id {animal_id} not found")
 
-    async def get_health_log_by_id(self, animal_id: UUID, health_log_id: UUID) -> HealthLogResponse:
+    async def get_health_log_by_id(self, animal_id: UUID, health_log_id: UUID) -> dict:
         await self._ensure_animal_exists(animal_id)
         health_log = await health_log_crud.get(
             self._session,
-            schema_to_select=HealthLogResponse,
-            return_as_model=True,
             id=health_log_id,
         )
-        if health_log is None or health_log.animal_id != animal_id:
+        if health_log is None or health_log.get("animal_id") != animal_id:
             raise NotFoundError(f"HealthLog with id {health_log_id} not found for animal {animal_id}")
         return health_log
 
@@ -42,22 +40,20 @@ class HealthLogService:
         )
         return paginated_response(crud_data=crud_data, page=page, items_per_page=items_per_page)
 
-    async def create_log(self, animal_id: UUID, payload: HealthLogCreate) -> HealthLogResponse:
+    async def create_log(self, animal_id: UUID, payload: HealthLogCreate) -> dict:
         await self._ensure_animal_exists(animal_id)
         return await health_log_crud.create(
             self._session,
             HealthLogInternalCreate(animal_id=animal_id, **payload.model_dump()),
-            schema_to_select=HealthLogResponse,
-            return_as_model=True,
+            schema_to_select=HealthLogResponse,#it was added because lib doesn't support return dict without it(
         )
 
-    async def update_log(self, animal_id: UUID, health_log_id: UUID, payload: HealthLogUpdate) -> HealthLogResponse:
+    async def update_log(self, animal_id: UUID, health_log_id: UUID, payload: HealthLogUpdate) -> HealthLog:
         await self.get_health_log_by_id(animal_id, health_log_id)
         return await health_log_crud.update(
             self._session,
             payload.model_dump(exclude_none=True),
-            schema_to_select=HealthLogResponse,
-            return_as_model=True,
+            return_columns=health_log_crud.model_col_names,# to get whole model
             id=health_log_id,
         )
 

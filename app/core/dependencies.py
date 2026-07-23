@@ -4,7 +4,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenError
-from app.core.fastapi_users_setup import current_active_user
+from app.services.user_manager import current_active_user
 from app.db import get_db_session
 from app.db.enums import Policy, Role
 from app.db.models import permission_crud

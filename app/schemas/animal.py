@@ -17,13 +17,6 @@ class HealthLogInternalCreate(BaseModel):
     examination_findings: str | None = None
 
 
-class AnimalInternalCreate(BaseModel):
-    name: str
-    gender: str
-    birth_date: datetime.date
-    caretaker_notes: str | None = None
-
-
 class HealthLogUpdate(BaseModel):
     procedure_name: str | None = None
     examination_findings: str | None = None

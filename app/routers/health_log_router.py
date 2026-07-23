@@ -25,7 +25,7 @@ async def get_health_logs(
     return await service.get_logs_paginated(animal_id, page, items_per_page)
 
 
-@router.get("/{log_id}", response_model=HealthLogResponse)
+@router.get("/{health_log_id}", response_model=HealthLogResponse)
 async def get_health_log(
     animal_id: UUID,
     health_log_id: UUID,
@@ -45,7 +45,7 @@ async def create_health_log(
     return await service.create_log(animal_id, payload)
 
 
-@router.patch("/{log_id}", response_model=HealthLogResponse)
+@router.patch("/{health_log_id}", response_model=HealthLogResponse)
 async def update_health_log(
     animal_id: UUID,
     health_log_id: UUID,
@@ -56,7 +56,7 @@ async def update_health_log(
     return await service.update_log(animal_id, health_log_id, payload)
 
 
-@router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{health_log_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_health_log(
     animal_id: UUID,
     health_log_id: UUID,

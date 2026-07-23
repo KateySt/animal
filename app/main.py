@@ -11,7 +11,7 @@ from app.admin import setup_admin
 from app.core import app_config
 from app.core.config import auth_config
 from app.core.exceptions import CustomError
-from app.core.fastapi_users_setup import fastapi_users
+from app.services.user_manager import fastapi_users
 from app.core.google_oauth import google_oauth_client
 from app.routers import animal_router, health_log_router, policy_router
 from app.schemas.user import UserCreate, UserRead, UserUpdate

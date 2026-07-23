@@ -18,7 +18,3 @@ def get_health_log_service(session: AsyncSession = Depends(get_db_session)) -> H
 
 def get_permission_service(session: AsyncSession = Depends(get_db_session)) -> PermissionService:
     return PermissionService(session)
-
-
-def get_redis_service() -> RedisService:
-    return redis_service

@@ -1,2 +1,3 @@
-from app.schemas.animal import AnimalCreate, AnimalUpdate, HealthLogCreate, HealthLogResponse
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.animal import AnimalCreate, AnimalUpdate, HealthLogCreate, HealthLogRead
+from app.schemas.auth import Auth2Redirect, Token, Principal
+from app.schemas.user import UserRead, UserUpdate

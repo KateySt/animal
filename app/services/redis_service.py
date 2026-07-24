@@ -3,15 +3,15 @@ import datetime
 import redis.asyncio as redis
 from redis.asyncio import ConnectionPool
 
-from app.core import redis_config
+from app.core import get_redis_config
 
 
 class RedisService:
     def __init__(self):
         self._pool = ConnectionPool(
-            host=redis_config.REDIS_HOST,
-            port=redis_config.REDIS_PORT,
-            password=redis_config.REDIS_PASSWORD,
+            host=get_redis_config().REDIS_HOST,
+            port=get_redis_config().REDIS_PORT,
+            password=get_redis_config().REDIS_PASSWORD,
             decode_responses=False,
             max_connections=10,
         )

@@ -3,10 +3,14 @@ from fastapi import status
 
 class CustomError(Exception):
     def __init__(
-        self, detail: str, status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self,
+        detail: str,
+        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        headers: dict[str, str] | None = None,
     ):
         self.detail = detail
         self.status_code = status_code
+        self.headers = headers
         super().__init__(detail)
 
 
@@ -31,10 +35,10 @@ class AlreadyExistsError(CustomError):
 
 
 class ForbiddenError(CustomError):
-    def __init__(self, detail: str):
-        super().__init__(detail, status_code=status.HTTP_403_FORBIDDEN)
+    def __init__(self, detail: str, headers: dict[str, str] | None = None):
+        super().__init__(detail, status_code=status.HTTP_403_FORBIDDEN, headers=headers)
 
 
 class UnauthorizedError(CustomError):
-    def __init__(self, detail: str):
-        super().__init__(detail, status_code=status.HTTP_401_UNAUTHORIZED)
+    def __init__(self, detail: str, headers: dict[str, str] | None = None):
+        super().__init__(detail, status_code=status.HTTP_401_UNAUTHORIZED, headers=headers)

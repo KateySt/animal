@@ -22,7 +22,7 @@ class HealthLogUpdate(BaseModel):
     examination_findings: str | None = None
 
 
-class HealthLogResponse(BaseModel):
+class HealthLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -48,7 +48,7 @@ class AnimalUpdate(BaseModel):
     caretaker_notes: str | None = None
 
 
-class AnimalResponse(BaseModel):
+class AnimalRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -58,4 +58,4 @@ class AnimalResponse(BaseModel):
     caretaker_notes: str | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    health_logs: list[HealthLogResponse] = []
+    health_logs: list[HealthLogRead] = []

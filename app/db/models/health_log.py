@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,9 +15,7 @@ if TYPE_CHECKING:
 
 
 class HealthLog(Base, IDMixin, TimestampMixin):
-    animal_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("animals.id", ondelete="CASCADE"), nullable=False
-    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("animals.id", ondelete="CASCADE"), nullable=False)
     procedure_name: Mapped[str] = mapped_column(String(100), nullable=False)
     examination_findings: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

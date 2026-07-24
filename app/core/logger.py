@@ -2,7 +2,7 @@ import logging
 
 import structlog
 
-from app.core.config import app_config
+from app.core.config import get_app_config
 
 structlog.configure(
     processors=[
@@ -13,7 +13,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
         structlog.dev.ConsoleRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(app_config.LOG_LEVEL)),
+    wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(get_app_config().LOG_LEVEL)),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
     cache_logger_on_first_use=False,

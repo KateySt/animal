@@ -1,165 +1,107 @@
 # Animal Shelter API — CLAUDE.md
 
 ## Stack
-FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL + Alembic + Pydantic v2 + Poetry + starlette-admin + fastapi-users + httpx-oauth + python-jose + bcrypt + Redis (fastapi-cache2). Python 3.11.
+FastAPI · SQLAlchemy 2 async · asyncpg · PostgreSQL · Alembic · Pydantic v2 · Poetry · starlette-admin · httpx-oauth (Google) · python-jose · bcrypt · Redis (fastapi-cache2). Python 3.11. Auth is **hand-rolled** (fastapi-users removed).
 
-## Project layout
+## Layout (non-obvious parts only)
 ```
 app/
   core/
-    config.py              # AppConfig, DBConfig, AuthConfig, RedisConfig (pydantic-settings)
-    dependencies.py        # require_permission(resource, policy), require_superuser
-    exceptions.py          # CustomError hierarchy (NotFound, Unauthorized, AlreadyExists, …)
-    security.py            # hash_password, verify_password (bcrypt helpers)
-    fastapi_users_setup.py # fastapi_users instance, current_active_user
-    google_oauth.py        # google_oauth_client (httpx-oauth GoogleOAuth2)
-    logger.py
+    config.py        # AppConfig, DBConfig, AuthConfig, RedisConfig (pydantic-settings)
+    dependencies.py  # oauth2_scheme, Principal, get_current_principal, require_scopes, require_superuser, get_current_user
+    security.py      # hash/verify_password, create/decode_access_token, generate/hash_refresh_token
+    cookies.py       # helpers for setting/clearing the refresh-token HttpOnly cookie
+    exceptions.py    # CustomError hierarchy (forwards headers for WWW-Authenticate)
   db/
-    enums.py          # Gender, Policy, Role (StrEnum)
+    enums.py         # Gender, Policy (read/create/update/delete). Role enum is legacy/unused.
     models/
-      base.py         # DeclarativeBase + auto __tablename__
-      animal.py       # Animal model
-      health_log.py   # HealthLog model
-      user.py         # User model (extends SQLAlchemyBaseUserTableUUID, adds role, oauth_accounts)
-      oauth_account.py# OAuthAccount (SQLAlchemyBaseOAuthAccountTableUUID)
-      permission.py   # Permission model (role, resource, action)
-      __init__.py     # FastCRUD instances: animal_crud, health_log_crud, permission_crud
-    mixins.py         # IDMixin (UUID PK), TimestampMixin
-    session.py        # engine, AsyncSessionLocal, get_db_session
-  admin/
-    setup.py          # setup_admin(app) — mounts starlette-admin at /admin
-    auth.py           # AdminAuthProvider (session-cookie login)
-    views.py          # AnimalAdmin, HealthLogAdmin, UserAdmin (ModelView)
-  schemas/
-    animal.py         # AnimalCreate, AnimalResponse, HealthLog*
-    user.py           # UserRead, UserCreate, UserUpdate (fastapi-users schemas + role)
-    policy.py         # PermissionCreate, PermissionResponse
+      base.py        # DeclarativeBase + auto __tablename__ + subject()
+      associations.py# user_roles, role_permissions M2M tables
+      __init__.py    # FastCRUD instances: animal_crud, health_log_crud, role_crud,
+                     #   permission_crud, resource_crud, refresh_token_crud, user_crud
+    mixins.py        # IDMixin (UUID PK), TimestampMixin
   services/
-    animal_service.py
-    health_log_service.py
-    permission_service.py  # list_permissions, add_permission, remove_permission
-    redis_service.py       # RedisService (asyncio redis pool, set/get/delete_cache); redis_service singleton
-    user_manager.py        # UserManager, get_user_manager, get_user_db, auth_backend (JWT)
-    __init__.py            # DI factories: get_animal_service, get_health_log_service,
-                           #               get_permission_service, get_redis_service
+    auth_service.py        # register, authenticate, login, refresh (rotation+reuse), logout, google_callback
+    role_service.py        # CRUD + assign users to roles, bump_permissions_version
+    permission_service.py  # CRUD permissions
+    resource_service.py    # CRUD resources
+    refresh_token_service.py
+    user_service.py
+    redis_service.py       # RedisService singleton (asyncio pool)
   routers/
-    animal_router.py
-    health_log_router.py
-    policy_router.py  # GET/POST /permissions, DELETE /permissions/{id} — superuser only
-  main.py             # lifespan (FastAPICache init + redis close), all routers + fastapi-users routers
-alembic/              # migrations
+    auth_router.py       # /auth register|login|refresh|logout|google/*
+    users_router.py      # /users/me, PUT /users/{id}/roles (superuser)
+    role_router.py       # /roles CRUD + PUT /roles/{id}/permissions (superuser)
+    permission_router.py # /permissions CRUD (superuser)
+    resource_router.py   # /resources CRUD (superuser)
+  main.py   # lifespan (FastAPICache init/close), CORS explicit origins, CustomError handler
+alembic/
 tests/
 ```
 
-## Auth — fastapi-users (replaced hand-rolled JWT)
-The project now uses **fastapi-users** for all user auth. The old `auth_router.py` is gone.
+## Auth
+OAuth2PasswordBearer + JWT access + DB-tracked refresh token (HttpOnly cookie) + Google OAuth2.
 
-Registered routers (all under `/api`):
-| Prefix | Router |
-|---|---|
-| `/auth/jwt` | `get_auth_router` — `POST /login`, `POST /logout` |
-| `/auth` | `get_register_router` — `POST /register` |
-| `/auth` | `get_reset_password_router` |
-| `/auth` | `get_verify_router` |
-| `/auth/google` | `get_oauth_router` (Google OAuth2, associate_by_email=True) |
-| `/users` | `get_users_router` — CRUD on `/users/me`, `/users/{id}` |
+**Tokens** (`app/core/security.py`):
+- **Access JWT** HS256: claims `sub, scopes[], pv, is_superuser, type="access", iat, exp`. TTL: `ACCESS_TOKEN_TIME_MINUTES`.
+- **Refresh**: opaque `secrets.token_urlsafe`; sha256 hash in `refresh_tokens` table, raw token in HttpOnly Secure SameSite=strict cookie at path `/api/auth`. Rotation on every refresh; reuse of a revoked token revokes the whole user's chain. TTL: `REFRESH_TOKEN_TIME_DAYS`.
 
-Key objects:
-- `auth_backend` — JWT via `BearerTransport` + `JWTStrategy` (secret: `AuthConfig.ACCESS_TOKEN_SECRET`, lifetime: `ACCESS_TOKEN_TIME_MINUTES * 60`)
-- `current_active_user` — `fastapi_users.current_user(active=True)` — use this in dependencies
-- `UserManager` — `UUIDIDMixin + BaseUserManager`; hooks: `on_after_register`, `on_after_forgot_password`, `on_after_request_verify`
-- `get_user_db` — yields `SQLAlchemyUserDatabase(session, User, OAuthAccount)`
+**User model**: `id, email, hashed_password, is_active, is_superuser, is_verified, permissions_version` + `roles` (M2M), `oauth_accounts`, `refresh_tokens`. M2M writes and scope resolution are hand-written with `selectinload` in services (not FastCRUD).
 
-**User model** extends `SQLAlchemyBaseUserTableUUID` (gives `id, email, hashed_password, is_active, is_superuser, is_verified`) and adds:
-- `role: Role` (default `Role.user`)
-- `oauth_accounts: list[OAuthAccount]` (lazy="joined")
+## RBAC
+Users ⇄ Roles ⇄ Permissions (M2M, runtime-editable). Scope = `Resource.name:Policy` (e.g. `animals:read`). Resource is a first-class DB table.
 
-**No** `user_crud` FastCRUD instance — user DB access goes through fastapi-users `SQLAlchemyUserDatabase`.
+**`get_current_principal`** flow: decode JWT → assert `type=="access"` → scope-subset check (skipped for superuser) → Redis `pv:{user_id}` check (miss → load `User.permissions_version` from DB, cache 1h; `token.pv < current` → 401). Returns `Principal` (no ORM row).
 
-## RBAC — Permission model
-`Permission(role, resource, action)` stores per-role allowances.
+**In-flight invalidation**: role/permission/user-role mutations increment `permissions_version` in the same commit, then delete `pv:{id}` from Redis after commit. Stale tokens 401 → client calls `/auth/refresh`.
 
-- `Role`: `user | admin | staff`
-- `Policy` (action): `read | create | update | delete`
-- `require_permission(resource, policy)` — dependency factory; superusers bypass the check.
-- `require_superuser` — dependency; raises `ForbiddenError` if `user.is_superuser` is False.
-- Permission CRUD endpoints at `/permissions` are superuser-only.
-
-### Protecting an endpoint
+**Protecting endpoints:**
 ```python
-# role-based (checks Permission table)
-user = Depends(require_permission("animals", Policy.create))
-
-# superuser only
-_ = Depends(require_superuser)
+_ = Depends(require_scopes(f"{Animal.subject()}:{Policy.create}"))  # scope-based
+_ = Depends(require_superuser)                                       # superuser only
 ```
+Superusers bypass scope check but still hit the `pv` check.
 
-## Redis + caching
-- `RedisService` (singleton `redis_service`) wraps `redis.asyncio` with a connection pool.
-- `fastapi-cache2` is initialised in `lifespan` with `RedisBackend(redis_service.redis)`, prefix `"fastapi-cache"`.
-- Cache is closed in lifespan teardown: `await redis_service.close()`.
-- Required env vars: `REDIS_HOST`, `REDIS_PORT`, `REDIS_USER`, `REDIS_PASSWORD`.
+## Architecture rules
+Layer order: Models ← FastCRUD ← Services ← Routers. Schemas used everywhere but must never import ORM.
+- Routers: parse input → call service → return `response_model`. No DB calls, no `*_crud` imports.
+- Multi-model writes in a service must use `async with session.begin()`.
+- `app/core/dependencies.py` may call cruds directly (infrastructure glue, not a router).
+- `app/admin/` may import models directly — only layer allowed to besides `app/db/models/__init__.py`.
 
-## Known bugs — never reintroduce
+## Patterns
 
-### 1. CORS is `allow_origins=["*"]` — tighten before production
-Set `CORS_ORIGINS` env var and load it via `AppConfig`; never hardcode wildcard in prod.
+**New model checklist:**
+1. `app/db/models/<name>.py` — inherit `Base, IDMixin, TimestampMixin`. Multi-word names set `__tablename__` explicitly.
+2. FK with `ondelete="CASCADE"` where appropriate.
+3. Register `FastCRUD(<Model>)` in `app/db/models/__init__.py`.
+4. Pydantic schemas in `app/schemas/` — response models need `model_config = ConfigDict(from_attributes=True)`.
+5. Service in `app/services/`, DI factory in `app/services/__init__.py`.
+6. Router in `app/routers/`, registered in `main.py`.
+7. `ModelView` in `app/admin/views.py`, added to `setup_admin()`.
+8. `alembic revision --autogenerate -m "add <name>"` — review before applying.
 
-## Patterns to follow
+**Exceptions** (never raise bare `HTTPException` from services):
+`NotFoundError`→404 · `UnauthorizedError`→401 · `ForbiddenError`→403 · `AlreadyExistsError`→409 · `BadRequestError`→400 · `ValidationError`→422
 
-### Adding a new model
-1. Create `app/db/models/<name>.py` — inherit `Base, IDMixin, TimestampMixin`.
-2. Add FK with `ondelete="CASCADE"` where appropriate.
-3. Auto-tablename comes from `Base.__tablename__`; no need to set it manually.
-4. Register `FastCRUD(<Model>)` instance in `app/db/models/__init__.py`.
-5. Create Pydantic schemas in `app/schemas/`; always set `model_config = ConfigDict(from_attributes=True)` on response models.
-6. Add service in `app/services/`, DI factory in `app/services/__init__.py`.
-7. Add router in `app/routers/`, register in `main.py`.
-8. Register a `ModelView` subclass in `app/admin/views.py` and add it to `setup_admin()`.
-9. Generate migration: `alembic revision --autogenerate -m "add <name>"`.
+**HTTP conventions:** `201` for POST, `204` for DELETE, explicit `response_model=` always.
 
-### Adding a new endpoint
-- Router only does: parse input → call service → return response model. No DB logic in routers.
-- Always set `response_model=` explicitly — never return raw ORM objects.
-- Use `status.HTTP_201_CREATED` for POST, `status.HTTP_204_NO_CONTENT` for DELETE.
-- Protect with `Depends(require_permission(...))` or `Depends(require_superuser)` — never `Depends(current_active_user)` directly in routers unless the endpoint truly needs no RBAC.
-
-### Exceptions
-Use `app.core.exceptions` — never raise bare `HTTPException` from services:
-- `NotFoundError` → 404
-- `UnauthorizedError` → 401
-- `ForbiddenError` → 403
-- `AlreadyExistsError` → 409
-- `BadRequestError` → 400
-- `ValidationError` → 422
-
-### Migrations
-- Always review autogenerated migration before applying — check for missing `server_default`, wrong types.
-- Never edit the DB schema directly; always use Alembic.
+## Known invariants — never break
+1. **CORS**: never `allow_origins=["*"]` with `allow_credentials=True`. Use `get_auth_config.CORS_ORIGINS`.
+2. **`WWW-Authenticate` headers**: `main.py` exception handler must forward `error.headers` into the `JSONResponse`.
 
 ## Code style
-- Ruff + mypy run automatically on every file save (PostToolUse hook).
-- Line length: 150. Target: py311.
-- Boolean fields/properties: `is_` prefix (e.g. `is_query_logging_enabled`).
+- Ruff + mypy on every save (PostToolUse hook). Line length: 150. Target: py311.
+- `is_` prefix on all boolean fields/properties.
 - No comments unless the WHY is non-obvious.
 
-## Architecture
-Run `/arch` to check Clean Architecture layer violations before any PR:
-- Dependency rule: Models ← FastCRUD instances ← Services ← Routers; Schemas are used by all layers but must never import ORM.
-- Schemas must not import or construct ORM instances.
-- Multi-model writes in one service method must be wrapped in `async with session.begin()`.
-- Routers must not import from `app.db.models` or call `*_crud` directly — go through a service.
-- `app/core/dependencies.py` is allowed to call `permission_crud` directly (it is infrastructure glue, not a router).
-- Admin views (`app/admin/`) may import models directly for `starlette-admin` registration; this is the only layer allowed to do so outside of `app/db/models/__init__.py`.
-
-## Review pipeline
-Run `/review` to trigger the full pipeline:
-`code-reviewer` → `dep-checker` + `logic-reviewer` (parallel) → `arbitrator` (if conflict).
-Arbitrator priority: Security > Correctness > minimal blast radius > defer non-blocking.
+## Skills
+- `/arch` — Clean Architecture layer-violation check (run before PR).
+- `/review` — full pipeline: `code-reviewer` → `dep-checker` + `logic-reviewer` → `arbitrator`. Priority: Security > Correctness > blast radius > non-blocking.
+- `/naming` — naming conventions check.
+- `/rest-urls` — REST URL best-practices check.
 
 ## Environment
-- Venv: `.venv/Scripts/python.exe` (Windows).
-- Run locally: `uvicorn app.main:app --reload`.
-- DB: PostgreSQL via Docker (`docker/docker-compose.yml`).
-- Secrets in `.env` (never commit); see `.env.sample`.
-- Required env vars: `DB_*`, `ACCESS_TOKEN_SECRET`, `RESET_PASSWORD_TOKEN_SECRET`, `VERIFICATION_TOKEN_SECRET`, `ADMIN_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `REDIS_*`.
+- Venv: `.venv/Scripts/python.exe` (Windows). Run: `uvicorn app.main:app --reload`.
+- DB: PostgreSQL via Docker (`docker/docker-compose.yml`). Secrets in `.env` (never commit).
+- Required env vars: `DB_*`, `ACCESS_TOKEN_SECRET`, `ADMIN_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_USER`, `REDIS_PASSWORD`.

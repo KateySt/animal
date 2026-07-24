@@ -8,10 +8,10 @@ from app.core import NotFoundError
 from app.db.models import Animal, HealthLog, animal_crud, health_log_crud
 from app.schemas.animal import (
     AnimalCreate,
-    AnimalResponse,
+    AnimalRead,
     AnimalUpdate,
     HealthLogInternalCreate,
-    HealthLogResponse,
+    HealthLogRead,
 )
 
 
@@ -44,11 +44,11 @@ class AnimalService:
             join_model=HealthLog,
             join_on=HealthLog.animal_id == Animal.id,
             join_prefix="health_logs_",
-            join_schema_to_select=HealthLogResponse,
+            join_schema_to_select=HealthLogRead,
             join_type="left",
             nest_joins=True,
             relationship_type="one-to-many",
-            schema_to_select=AnimalResponse,
+            schema_to_select=AnimalRead,
             offset=compute_offset(page, items_per_page),
             limit=items_per_page,
             return_total_count=True,
@@ -70,8 +70,8 @@ class AnimalService:
         return await animal_crud.update(
             self._session,
             payload.model_dump(exclude_none=True),
-            return_columns=animal_crud.model_col_names,# to get whole model
-            id=id
+            return_columns=animal_crud.model_col_names,  # to get whole model
+            id=id,
         )
 
     async def delete_animal(self, id: UUID) -> None:

@@ -4,55 +4,55 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from fastcrud import PaginatedListResponse
 
-from app.core.dependencies import require_permission
-from app.db import Policy
+from app.core.dependencies import require_scopes
 from app.db.models import HealthLog
-from app.schemas.animal import HealthLogCreate, HealthLogResponse, HealthLogUpdate
+from app.schemas import Principal
+from app.schemas.animal import HealthLogCreate, HealthLogRead, HealthLogUpdate
 from app.services import get_health_log_service
 from app.services.health_log_service import HealthLogService
 
 router = APIRouter()
 
 
-@router.get("", response_model=PaginatedListResponse[HealthLogResponse])
+@router.get("", response_model=PaginatedListResponse[HealthLogRead])
 async def get_health_logs(
     animal_id: UUID,
     page: int = Query(1, ge=1),
     items_per_page: int = Query(20, ge=1, le=100),
     service: HealthLogService = Depends(get_health_log_service),
-    _=Depends(require_permission(HealthLog.subject(), Policy.read)),
+    _: Principal = Depends(require_scopes(f"{HealthLog.subject()}:read")),
 ) -> dict[str, Any]:
     return await service.get_logs_paginated(animal_id, page, items_per_page)
 
 
-@router.get("/{health_log_id}", response_model=HealthLogResponse)
+@router.get("/{health_log_id}", response_model=HealthLogRead)
 async def get_health_log(
     animal_id: UUID,
     health_log_id: UUID,
     service: HealthLogService = Depends(get_health_log_service),
-    _=Depends(require_permission(HealthLog.subject(), Policy.read)),
-) -> HealthLogResponse:
+    _: Principal = Depends(require_scopes(f"{HealthLog.subject()}:read")),
+) -> HealthLog:
     return await service.get_health_log_by_id(animal_id, health_log_id)
 
 
-@router.post("", response_model=HealthLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=HealthLogRead, status_code=status.HTTP_201_CREATED)
 async def create_health_log(
     animal_id: UUID,
     payload: HealthLogCreate,
     service: HealthLogService = Depends(get_health_log_service),
-    _=Depends(require_permission(HealthLog.subject(), Policy.create)),
-) -> HealthLogResponse:
+    _: Principal = Depends(require_scopes(f"{HealthLog.subject()}:create")),
+) -> HealthLog:
     return await service.create_log(animal_id, payload)
 
 
-@router.patch("/{health_log_id}", response_model=HealthLogResponse)
+@router.patch("/{health_log_id}", response_model=HealthLogRead)
 async def update_health_log(
     animal_id: UUID,
     health_log_id: UUID,
     payload: HealthLogUpdate,
     service: HealthLogService = Depends(get_health_log_service),
-    _=Depends(require_permission(HealthLog.subject(), Policy.update)),
-) -> HealthLogResponse:
+    _: Principal = Depends(require_scopes(f"{HealthLog.subject()}:update")),
+) -> HealthLog:
     return await service.update_log(animal_id, health_log_id, payload)
 
 
@@ -61,6 +61,6 @@ async def delete_health_log(
     animal_id: UUID,
     health_log_id: UUID,
     service: HealthLogService = Depends(get_health_log_service),
-    _=Depends(require_permission(HealthLog.subject(), Policy.delete)),
+    _: Principal = Depends(require_scopes(f"{HealthLog.subject()}:delete")),
 ) -> None:
     await service.delete_log(animal_id, health_log_id)

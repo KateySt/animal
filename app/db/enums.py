@@ -7,14 +7,6 @@ class Gender(StrEnum):
     unknown = "unknown"
 
 
-class Policy(StrEnum):
-    read = "read"
-    create = "create"
-    update = "update"
-    delete = "delete"
-
-
-class Role(StrEnum):
-    user = "user"
-    admin = "admin"
-    staff = "staff"
+class TokenType(StrEnum):
+    access = "access"
+    refresh = "refresh"

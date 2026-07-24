@@ -1,13 +1,12 @@
-from fastapi_users.db import SQLAlchemyUserDatabase
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette_admin.auth import AdminConfig, AdminUser, AuthProvider
 from starlette_admin.exceptions import FormValidationError
 
-from app.db.models.oauth_account import OAuthAccount
+from app.core.security import verify_password
 from app.db.models.user import User
 from app.db.session import AsyncSessionLocal
-from app.services.user_manager import UserManager
 
 
 class AdminAuthProvider(AuthProvider):
@@ -20,11 +19,8 @@ class AdminAuthProvider(AuthProvider):
         response: Response,
     ) -> Response:
         async with AsyncSessionLocal() as session:
-            user_db = SQLAlchemyUserDatabase(session, User, OAuthAccount)
-            manager = UserManager(user_db)
-            credentials = type("Credentials", (), {"username": username, "password": password})()
-            user = await manager.authenticate(credentials)
-            if user is None or not user.is_active or not user.is_superuser:
+            user = await session.scalar(select(User).where(User.email == username))
+            if user is None or not user.is_active or not user.is_superuser or not verify_password(password, user.hashed_password):
                 raise FormValidationError({"password": "Invalid credentials"})
 
         request.session.update({"admin_username": user.email, "admin_name": user.email})

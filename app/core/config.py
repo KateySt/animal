@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,7 +13,7 @@ class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
+        extra="ignore"
     )
 
 
@@ -20,13 +22,13 @@ class DBConfig(BaseSettings):
     DB_USER: str
     DB_PASSWORD: str
     DB_HOST: str
-    DB_PORT: str
+    DB_PORT: int
     DB_ECHO: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
+        extra="ignore"
     )
 
     @computed_field
@@ -37,20 +39,28 @@ class DBConfig(BaseSettings):
 
 class AuthConfig(BaseSettings):
     ACCESS_TOKEN_SECRET: str
-    ACCESS_TOKEN_TIME_MINUTES: int = 30
-    RESET_PASSWORD_TOKEN_SECRET: str
-    VERIFICATION_TOKEN_SECRET: str
+    ACCESS_TOKEN_TIME_MINUTES: int
+    REFRESH_TOKEN_TIME_DAYS: int
+    JWT_ALGORITHM: str
 
     ADMIN_SECRET: str
+
+    SUPERUSER_EMAIL: str
+    SUPERUSER_PASSWORD: str
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
 
+    COOKIE_SECURE: bool = True
+    COOKIE_DOMAIN: str | None = None
+
+    CORS_ORIGINS: list[str]
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
+        extra="ignore"
     )
 
 
@@ -63,11 +73,25 @@ class RedisConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
+        extra="ignore"
     )
 
 
-app_config = AppConfig()
-db_config = DBConfig()
-auth_config = AuthConfig()
-redis_config = RedisConfig()
+@lru_cache
+def get_db_config() -> DBConfig:
+    return DBConfig()
+
+
+@lru_cache
+def get_app_config() -> AppConfig:
+    return AppConfig()
+
+
+@lru_cache
+def get_auth_config() -> AuthConfig:
+    return AuthConfig()
+
+
+@lru_cache
+def get_redis_config() -> RedisConfig:
+    return RedisConfig()

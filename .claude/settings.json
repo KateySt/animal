@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 30,
+  "env": {
+    "ENABLE_TOOL_SEARCH": "auto",
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "MAX_MCP_OUTPUT_TOKENS": "25000",
+    "CLAUDE_CODE_ENABLE_TASKS": "1"
+  },
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "WebFetch(domain:docs.taskflow.dev)"
+    ],
+    "ask": [
+      "Edit",
+      "Write"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)",
+      "Bash(sudo:*)",
+      "Read(./.env)",
+      "Read(./venv/)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__postgres__execute",
+      "Bash(git push:*)"
+    ],
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ruff.sh",
+            "statusMessage": "Formatting with Ruff..."
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/mypy.sh",
+            "statusMessage": "Type-checking with mypy..."
+          }
+        ]
+      }
+    ]
+  },
+  "outputStyle": "default",
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true
+  }
+}

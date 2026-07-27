@@ -1,7 +1,13 @@
-venv/
+README.md
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+venv/
 .env
+.git
+.gitignore
+tests/
 /alembic/README
 /app.log
 dist/

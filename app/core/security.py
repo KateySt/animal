@@ -25,7 +25,7 @@ def create_access_token(user: User, scopes: list[str] | None = None) -> str:
     payload = {
         "sub": str(user.id),
         "scopes": scopes or [],
-        "pv": user.permissions_version,
+        "permissions_version": user.permissions_version,
         "is_superuser": user.is_superuser,
         "type": TokenType.access,
         "iat": now,

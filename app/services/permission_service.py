@@ -46,13 +46,15 @@ class PermissionService:
 
         updated_version_users = await self._session.execute(
             update(User)
-            .where(User.id.in_(
-                select(user_roles.c.user_id)
-                .join(role_permissions, role_permissions.c.role_id == user_roles.c.role_id)
-                .where(role_permissions.c.permission_id == permission_id)
-                .distinct()
-                .scalar_subquery()
-            ))
+            .where(
+                User.id.in_(
+                    select(user_roles.c.user_id)
+                    .join(role_permissions, role_permissions.c.role_id == user_roles.c.role_id)
+                    .where(role_permissions.c.permission_id == permission_id)
+                    .distinct()
+                    .scalar_subquery()
+                )
+            )
             .values(permissions_version=User.permissions_version + 1)
             .returning(User.id)
         )
@@ -60,4 +62,4 @@ class PermissionService:
         await permission_crud.delete(self._session, id=permission_id)
 
         for user in updated_version_users.scalars().all():
-            await redis_service.delete_cache(f"pv:{user}")
+            await redis_service.delete_cache(f"permissions_version:{user}")

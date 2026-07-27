@@ -42,8 +42,6 @@ class UserCreate(BaseModel):
 class OAuthAccountCreate(BaseModel):
     user_id: uuid.UUID
     oauth_name: str
-    access_token: str
-    expires_at: int | None = None
     account_id: str
     account_email: str
 

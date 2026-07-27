@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import func, select, ScalarResult
+from sqlalchemy import ScalarResult, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
 from app.core.security import generate_refresh_token, hash_password
-from app.db.models import OAuthAccount, oauth_account_crud, user_crud, animal_crud
+from app.db.models import OAuthAccount, animal_crud, oauth_account_crud, user_crud
 from app.db.models.associations import role_permissions, user_roles
 from app.db.models.permission import Permission
 from app.db.models.resource import Resource
@@ -46,8 +46,7 @@ class UserService:
             return None
         return UserInternal.model_validate(user)
 
-    async def get_by_email_or_create_with_oauth(self, email: str, access_token: str, expires_at: int | None,
-                                                account_id: str) -> UserInternal:
+    async def get_by_email_or_create_with_oauth(self, email: str, account_id: str) -> UserInternal:
         user = await user_crud.get(self._session, schema_to_select=UserInternal, return_as_model=True, email=email)
         if user is None:
             created = await user_crud.create(
@@ -61,8 +60,6 @@ class UserService:
                 OAuthAccountCreate(
                     user_id=created.id,
                     oauth_name="google",
-                    access_token=access_token,
-                    expires_at=expires_at,
                     account_id=account_id,
                     account_email=email,
                 ),

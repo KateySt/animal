@@ -22,8 +22,7 @@ class RoleService:
 
     async def get_role(self, role_id: UUID) -> Role:
         role = await self._session.scalar(
-            select(Role).options(selectinload(Role.permissions).selectinload(Permission.resource)).where(
-                Role.id == role_id)
+            select(Role).options(selectinload(Role.permissions).selectinload(Permission.resource)).where(Role.id == role_id)
         )
         if role is None:
             raise NotFoundError(f"Role {role_id} not found")
@@ -60,15 +59,14 @@ class RoleService:
     async def set_role_permissions(self, role_id: UUID, permission_ids: list[UUID]) -> Role:
         await self.check_role(role_id)
 
-        not_found_permissions = (await self._session.scalars(
-            except_(
-                select(
-                    values(column("id", Permission.id.type), name="requested").data([(pid,) for pid in permission_ids]).c.id
-                ),
-                select(Permission.id)
-                .where(Permission.id.in_(permission_ids))
+        not_found_permissions = (
+            await self._session.scalars(
+                except_(
+                    select(values(column("id", Permission.id.type), name="requested").data([(pid,) for pid in permission_ids]).c.id),
+                    select(Permission.id).where(Permission.id.in_(permission_ids)),
+                )
             )
-        )).all()
+        ).all()
         if not_found_permissions:
             raise NotFoundError(f"Permissions not found: {sorted(str(permission) for permission in not_found_permissions)}")
 
@@ -79,7 +77,7 @@ class RoleService:
         affected = await self._bump_permissions_version_by_role(role_id)
         await self._session.commit()
         for user_id in affected:
-            await redis_service.delete_cache(f"pv:{user_id}")
+            await redis_service.delete_cache(f"permissions_version:{user_id}")
         return await self.get_role(role_id)
 
     async def assign_roles_to_user(self, user_id: UUID, role_ids: list[UUID]) -> User:
@@ -95,7 +93,7 @@ class RoleService:
         user.roles = list(roles)
         await self._bump_permissions_version([user_id])
         await self._session.commit()
-        await redis_service.delete_cache(f"pv:{user_id}")
+        await redis_service.delete_cache(f"permissions_version:{user_id}")
         return await self._session.scalar(select(User).options(selectinload(User.roles)).where(User.id == user_id))
 
     async def _bump_permissions_version_by_role(self, role_id: UUID):
@@ -110,5 +108,4 @@ class RoleService:
     async def _bump_permissions_version(self, user_ids: Sequence[UUID]) -> None:
         if not user_ids:
             return
-        await self._session.execute(
-            update(User).where(User.id.in_(user_ids)).values(permissions_version=User.permissions_version + 1))
+        await self._session.execute(update(User).where(User.id.in_(user_ids)).values(permissions_version=User.permissions_version + 1))

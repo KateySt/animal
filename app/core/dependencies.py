@@ -32,19 +32,19 @@ async def get_current_principal(
         raise UnauthorizedError("Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
 
     user_id = uuid.UUID(payload.get("sub"))
-    token_pv: int = payload.get("pv", 0)
-    cached_pv = await redis_service.get_cache(f"pv:{user_id}")
+    token_permissions_version: int = payload.get("permissions_version", 0)
+    cached_permissions_version = await redis_service.get_cache(f"permissions_version:{user_id}")
 
-    if cached_pv is None:
+    if cached_permissions_version is None:
         result = await session.execute(select(User.permissions_version).where(User.id == user_id))
-        current_pv = result.scalar_one_or_none()
-        if current_pv is None:
+        current_permissions_version = result.scalar_one_or_none()
+        if current_permissions_version is None:
             raise UnauthorizedError("User not found", headers={"WWW-Authenticate": "Bearer"})
-        await redis_service.set_cache(f"pv:{user_id}", current_pv, ttl=3600)
+        await redis_service.set_cache(f"permissions_version:{user_id}", current_permissions_version, ttl=3600)
     else:
-        current_pv = int(cached_pv)
+        current_permissions_version = int(cached_permissions_version)
 
-    if token_pv < current_pv:
+    if token_permissions_version < current_permissions_version:
         raise UnauthorizedError("Token invalidated, please refresh", headers={"WWW-Authenticate": "Bearer"})
 
     return Principal(

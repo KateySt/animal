@@ -3,6 +3,7 @@ from fastcrud import FastCRUD
 from app.db.models import associations
 from app.db.models.animal import Animal
 from app.db.models.health_log import HealthLog
+from app.db.models.invoice import Invoice
 from app.db.models.oauth_account import OAuthAccount
 from app.db.models.permission import Permission
 from app.db.models.refresh_token import RefreshToken
@@ -12,6 +13,7 @@ from app.db.models.user import User
 
 animal_crud = FastCRUD(Animal)
 health_log_crud = FastCRUD(HealthLog)
+invoice_crud = FastCRUD(Invoice)
 role_crud = FastCRUD(Role)
 permission_crud = FastCRUD(Permission)
 resource_crud = FastCRUD(Resource)

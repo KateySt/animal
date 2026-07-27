@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from fastcrud import PaginatedListResponse
 
-from app.core.dependencies import require_scopes
+from app.core.dependencies import require_roles, require_scopes
 from app.db.models import Animal
 from app.schemas import Principal
 from app.schemas.animal import AnimalCreate, AnimalRead, AnimalUpdate
@@ -37,7 +37,7 @@ async def get_animal(
 async def create_animal(
     payload: AnimalCreate,
     service: AnimalService = Depends(get_animal_service),
-    _: Principal = Depends(require_scopes(f"{Animal.subject()}:create")),
+    _: Principal = Depends(require_roles("vet", "admin")),
 ) -> Animal:
     return await service.create_animal_with_initial_health_log(payload)
 

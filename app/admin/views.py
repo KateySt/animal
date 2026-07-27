@@ -29,6 +29,13 @@ class HealthLogAdmin(ModelView):
     searchable_fields = ["procedure_name"]
 
 
+class InvoiceAdmin(ModelView):
+    fields = ["id", "user", "animal", "health_logs", "amount_in_cents", "status", "created_at", "updated_at"]
+    exclude_fields_from_list = ["health_logs"]
+    sortable_fields = ["status", "amount_in_cents", "created_at"]
+    fields_default_sort = [("created_at", True)]
+
+
 class UserAdmin(ModelView):
     fields = [
         "id",

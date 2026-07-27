@@ -34,6 +34,7 @@ class HealthLogRead(BaseModel):
 
 
 class AnimalCreate(BaseModel):
+    owner_id: uuid.UUID
     name: str
     gender: Gender
     birth_date: datetime.date

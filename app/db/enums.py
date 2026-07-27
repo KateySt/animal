@@ -10,3 +10,14 @@ class Gender(StrEnum):
 class TokenType(StrEnum):
     access = "access"
     refresh = "refresh"
+
+
+class Currency(StrEnum):
+    usd = "usd"
+    uah = "uah"
+
+
+class InvoiceStatus(StrEnum):
+    pending = "pending"
+    paid = "paid"
+    cancelled = "cancelled"

@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import stripe
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
@@ -9,10 +10,13 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.admin import setup_admin
 from app.core import get_app_config
-from app.core.config import get_auth_config
+from app.core.config import get_auth_config, get_stripe_config
 from app.core.exceptions import CustomError
 from app.routers import v1_router
 from app.services.redis_service import redis_service
+
+
+stripe.api_key = get_stripe_config().STRIPE_SECRET_KEY
 
 
 @asynccontextmanager

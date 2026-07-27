@@ -11,7 +11,7 @@ from app.schemas.auth import IssuedTokens
 from app.schemas.user import UserInternal
 from app.services.redis_service import redis_service
 from app.services.refresh_token_service import RefreshTokenService
-from app.services.user_service import UserSrvice
+from app.services.user_service import UserService
 
 
 class AuthService:
@@ -19,7 +19,7 @@ class AuthService:
         self,
         session: AsyncSession,
         refresh_token_service: RefreshTokenService,
-        user_service: UserSrvice,
+        user_service: UserService,
     ) -> None:
         self._session = session
         self._refresh_token_service = refresh_token_service

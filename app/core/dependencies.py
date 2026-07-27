@@ -66,6 +66,23 @@ def require_scopes(*scopes: str) -> Callable:
     return _check
 
 
+def require_roles(*role_names: str) -> Callable:
+    async def _check(
+        principal: Principal = Depends(get_current_principal),
+        user: User = Depends(get_current_user),
+    ) -> Principal:
+        if principal.is_superuser:
+            return principal
+        if user is None or not user.is_active:
+            raise UnauthorizedError("User not found or inactive")
+        user_role_names = {role.name for role in user.roles}
+        if not user_role_names.intersection(role_names):
+            raise ForbiddenError(f"Required role(s): {', '.join(role_names)}")
+        return principal
+
+    return _check
+
+
 async def require_superuser(principal: Principal = Depends(get_current_principal)) -> Principal:
     if not principal.is_superuser:
         raise ForbiddenError("Superuser access required")

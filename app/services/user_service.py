@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
 from app.core.security import generate_refresh_token, hash_password
-from app.db.models import OAuthAccount, oauth_account_crud, user_crud
+from app.db.models import OAuthAccount, oauth_account_crud, user_crud, animal_crud
 from app.db.models.associations import role_permissions, user_roles
 from app.db.models.permission import Permission
 from app.db.models.resource import Resource
@@ -13,7 +13,7 @@ from app.db.models.user import User
 from app.schemas.user import OAuthAccountCreate, UserCreate, UserInternal
 
 
-class UserSrvice:
+class UserService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -29,6 +29,12 @@ class UserSrvice:
             raise NotFoundError("User not found")
         return user
 
+    async def get_by_animal_id(self, animal_id: UUID) -> UserInternal:
+        animal = await animal_crud.get(self._session, id=animal_id)
+        if animal is None:
+            raise NotFoundError("Animal not found")
+        return await self.get_by_id(animal.get("owner_id"))
+
     async def get_by_oauth(self, oauth_name: str, account_id: str) -> UserInternal | None:
         user = await self._session.execute(
             select(User)
@@ -40,7 +46,8 @@ class UserSrvice:
             return None
         return UserInternal.model_validate(user)
 
-    async def get_by_email_or_create_with_oauth(self, email: str, access_token: str, expires_at: int | None, account_id: str) -> UserInternal:
+    async def get_by_email_or_create_with_oauth(self, email: str, access_token: str, expires_at: int | None,
+                                                account_id: str) -> UserInternal:
         user = await user_crud.get(self._session, schema_to_select=UserInternal, return_as_model=True, email=email)
         if user is None:
             created = await user_crud.create(

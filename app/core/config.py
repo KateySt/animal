@@ -77,6 +77,17 @@ class RedisConfig(BaseSettings):
     )
 
 
+class StripeConfig(BaseSettings):
+    STRIPE_SECRET_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+
 @lru_cache
 def get_db_config() -> DBConfig:
     return DBConfig()
@@ -95,3 +106,8 @@ def get_auth_config() -> AuthConfig:
 @lru_cache
 def get_redis_config() -> RedisConfig:
     return RedisConfig()
+
+
+@lru_cache
+def get_stripe_config() -> StripeConfig:
+    return StripeConfig()

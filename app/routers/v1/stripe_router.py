@@ -1,21 +1,20 @@
-from fastapi import APIRouter, Depends
-from fastapi import Request
+from fastapi import APIRouter, Depends, Request
 
-from app.core.dependencies import require_roles, get_current_user
+from app.core.dependencies import get_current_user, require_roles
 from app.db.models import User
 from app.schemas import Principal
-from app.schemas.stripe import InvoicePaymentRequest, InvoiceCreate, InvoiceResponse
+from app.schemas.stripe import InvoiceCreate, InvoicePaymentRequest, InvoiceWithLogsRead
 from app.services import InvoiceService, get_invoice_service
 
 router = APIRouter()
 
 
-@router.post("/", response_model=InvoiceResponse)
+@router.post("/", response_model=InvoiceWithLogsRead)
 async def create_invoice(
     payload: InvoiceCreate,
     service: InvoiceService = Depends(get_invoice_service),
     _: Principal = Depends(require_roles("vet")),
-) -> InvoiceResponse:
+) -> InvoiceWithLogsRead:
     return await service.create(payload)
 
 

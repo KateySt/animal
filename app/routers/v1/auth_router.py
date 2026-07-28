@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.core import get_auth_config
 from app.core.cookies import delete_refresh_cookie, set_refresh_cookie
+from app.core.oauth import oauth
 from app.db import TokenType
 from app.schemas.auth import Auth2Redirect, RegisterRequest, Token
 from app.schemas.user import UserRead
@@ -52,19 +54,17 @@ async def logout(
 
 
 @router.get("/google/authorize", response_model=Auth2Redirect)
-async def google_authorize(
-    service: AuthService = Depends(get_auth_service),
-) -> Auth2Redirect:
-    return await service.get_authorize_url()
+async def google_authorize(request: Request) -> Auth2Redirect:
+    google = oauth.create_client("google")
+    return await google.authorize_redirect(request, redirect_uri=get_auth_config().GOOGLE_REDIRECT_URI)
 
 
 @router.get("/google/callback", response_model=Token)
 async def google_callback(
-    code: str,
-    state: str,
     response: Response,
+    request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> Token:
-    tokens = await service.google_callback(code, state)
+    tokens = await service.google_callback(await oauth.google.authorize_access_token(request))
     set_refresh_cookie(response, tokens)
     return Token(access_token=tokens.access_token)

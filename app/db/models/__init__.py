@@ -9,6 +9,7 @@ from app.db.models.permission import Permission
 from app.db.models.refresh_token import RefreshToken
 from app.db.models.resource import Resource
 from app.db.models.role import Role
+from app.db.models.stripe_event import StripeEvent
 from app.db.models.user import User
 
 animal_crud = FastCRUD(Animal)
@@ -18,5 +19,6 @@ role_crud = FastCRUD(Role)
 permission_crud = FastCRUD(Permission)
 resource_crud = FastCRUD(Resource)
 refresh_token_crud = FastCRUD(RefreshToken)
+stripe_event_crud = FastCRUD(StripeEvent)
 user_crud = FastCRUD(User)
 oauth_account_crud = FastCRUD(OAuthAccount)

@@ -7,13 +7,13 @@ from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import setup_admin
 from app.core import get_app_config
 from app.core.config import get_auth_config, get_stripe_config
 from app.core.exceptions import CustomError
 from app.routers import v1_router
-from app.services.google_oauth_service import google_oauth_service
 from app.services.redis_service import redis_service
 
 stripe.api_key = get_stripe_config().STRIPE_SECRET_KEY
@@ -21,7 +21,6 @@ stripe.api_key = get_stripe_config().STRIPE_SECRET_KEY
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await google_oauth_service.init()
     FastAPICache.init(RedisBackend(redis_service.redis), prefix="fastapi-cache")
     yield
     await redis_service.close()
@@ -33,6 +32,8 @@ app = FastAPI(
     root_path="/api",
     lifespan=lifespan,
 )
+
+app.add_middleware(SessionMiddleware, secret_key=get_auth_config().ADMIN_SECRET)
 
 app.add_middleware(
     CORSMiddleware,

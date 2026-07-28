@@ -5,12 +5,11 @@ from fastcrud import compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import NotFoundError
-from app.db.models import Animal, HealthLog, animal_crud, health_log_crud
+from app.db.models import Animal, HealthLog, animal_crud
 from app.schemas.animal import (
     AnimalCreate,
     AnimalRead,
     AnimalUpdate,
-    HealthLogInternalCreate,
     HealthLogRead,
 )
 
@@ -56,12 +55,10 @@ class AnimalService:
         return paginated_response(crud_data=crud_data, page=page, items_per_page=items_per_page)
 
     async def create_animal_with_initial_health_log(self, payload: AnimalCreate) -> Animal:
-        async with self._session.begin_nested():
-            animal = Animal(**payload.model_dump(exclude={"health_logs"}))
-            self._session.add(animal)
-            await self._session.flush()
-            log_schemas = [HealthLogInternalCreate(animal_id=animal.id, **log.model_dump()) for log in payload.health_logs]
-            await health_log_crud.upsert_multi(self._session, log_schemas, commit=False)
+        animal = Animal(**payload.model_dump(exclude={"health_logs"}))
+        self._session.add(animal)
+        await self._session.flush()
+        self._session.add_all(HealthLog(animal_id=animal.id, **log.model_dump()) for log in payload.health_logs)
         await self._session.commit()
         return await self.get_animal_by_id(animal.id)
 

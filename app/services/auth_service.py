@@ -1,21 +1,15 @@
-import secrets
 from datetime import UTC, datetime
 
-from authlib.common.security import generate_token
-from authlib.jose import jwt as authlib_jwt
-from authlib.oidc.core import CodeIDToken
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import BadRequestError
-from app.core.config import get_auth_config
 from app.core.exceptions import UnauthorizedError
 from app.core.security import (
     create_access_token,
     verify_password,
 )
-from app.schemas.auth import Auth2Redirect, IssuedTokens
+from app.schemas.auth import IssuedTokens
 from app.schemas.user import UserInternal
-from app.services.google_oauth_service import google_oauth_service
 from app.services.redis_service import redis_service
 from app.services.refresh_token_service import RefreshTokenService
 from app.services.user_service import UserService
@@ -70,38 +64,8 @@ class AuthService:
     async def logout(self, raw_refresh: str) -> None:
         await self._refresh_token_service.revoke(raw_refresh)
 
-    @staticmethod
-    async def get_authorize_url() -> Auth2Redirect:
-        state = secrets.token_urlsafe(32)
-        nonce = generate_token()
-        url, _ = google_oauth_service.client.create_authorization_url(
-            google_oauth_service.metadata["authorization_endpoint"],
-            redirect_uri=get_auth_config().GOOGLE_REDIRECT_URI,
-            state=state,
-            nonce=nonce,
-        )
-        return Auth2Redirect(authorization_url=url)
-
-    async def google_callback(self, code: str, state: str) -> IssuedTokens:
-        async with google_oauth_service.client as client:
-            token = await client.fetch_token(
-                google_oauth_service.metadata["token_endpoint"],
-                code=code,
-                redirect_uri=get_auth_config().GOOGLE_REDIRECT_URI,
-            )
-
-        claims = await authlib_jwt.decode(
-            token["id_token"],
-            google_oauth_service.jwks,
-            claims_cls=CodeIDToken,
-            claims_options={
-                "iss": {"essential": True, "value": "https://accounts.google.com"},
-                "aud": {"essential": True, "value": get_auth_config().GOOGLE_CLIENT_ID},
-                "nonce": {"essential": True, "value": state},
-            },
-        )
-        claims.validate()
-
+    async def google_callback(self, token: dict) -> IssuedTokens:
+        claims = token['userinfo']
         account_email = claims.get("email")
         if not account_email or not claims.get("email_verified"):
             raise BadRequestError("Google account has problem with email")

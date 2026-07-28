@@ -13,8 +13,6 @@ from app.db.session import engine
 
 
 def setup_admin(app: FastAPI) -> None:
-    app.add_middleware(SessionMiddleware, secret_key=get_auth_config().ADMIN_SECRET)
-
     admin = Admin(
         engine,
         title="Animal Shelter",

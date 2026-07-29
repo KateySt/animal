@@ -10,11 +10,7 @@ class AppConfig(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 class DBConfig(BaseSettings):
@@ -25,11 +21,7 @@ class DBConfig(BaseSettings):
     DB_PORT: int
     DB_ECHO: bool = False
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @computed_field
     @property
@@ -59,11 +51,7 @@ class AuthConfig(BaseSettings):
 
     FRONTEND_URL: str
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 class RedisConfig(BaseSettings):
@@ -72,27 +60,39 @@ class RedisConfig(BaseSettings):
     REDIS_USER: str
     REDIS_PASSWORD: str
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 class StripeConfig(BaseSettings):
     STRIPE_SECRET_KEY: str
     STRIPE_WEBHOOK_SECRET: str
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+class TestConfig(BaseSettings):
+    DB_NAME: str
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_HOST: str
+    DB_PORT: int
+
+    model_config = SettingsConfigDict(env_file=".env.test", env_file_encoding="utf-8", extra="ignore")
+
+    @computed_field
+    @property
+    def async_database_url(self) -> str:
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 @lru_cache
 def get_db_config() -> DBConfig:
     return DBConfig()
+
+
+@lru_cache
+def get_test_config() -> TestConfig:
+    return TestConfig()
 
 
 @lru_cache

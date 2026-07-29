@@ -63,6 +63,8 @@ class AuthService:
         )
 
     async def logout(self, raw_refresh: str) -> None:
+        if raw_refresh is None:
+            raise BadRequestError(ErrorCode.INVALID_REFRESH_TOKEN)
         await self._refresh_token_service.revoke(raw_refresh)
 
     async def google_callback(self, token: dict) -> IssuedTokens:

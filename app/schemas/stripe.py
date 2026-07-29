@@ -45,3 +45,4 @@ class ConfirmPaymentRequest(BaseModel):
 class ConfirmPaymentResponse(BaseModel):
     status: str
     client_secret: str | None = None
+    payment_intent_id: str | None = None

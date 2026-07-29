@@ -23,7 +23,8 @@ class InvoiceService:
         }
 
     async def get_by_id(self, invoice_id: UUID) -> InvoiceWithLogsRead:
-        result = await self._session.execute(select(Invoice).where(Invoice.id == invoice_id).options(selectinload(Invoice.health_logs)))
+        result = await self._session.execute(
+            select(Invoice).where(Invoice.id == invoice_id).options(selectinload(Invoice.health_logs)))
         invoice = result.scalar_one_or_none()
         if invoice is None:
             raise NotFoundError(f"Invoice {invoice_id} not found")
@@ -53,6 +54,8 @@ class InvoiceService:
         invoice = invoice.scalar_one_or_none()
         if invoice is None:
             raise NotFoundError(f"Invoice {invoice_id} not found")
+        if invoice.status == InvoiceStatus.processing:
+            raise BadRequestError("Invoice payment is already being processed")
         if invoice.status != InvoiceStatus.pending:
             raise BadRequestError(f"Invoice is already {invoice.status}")
         return invoice
@@ -90,17 +93,26 @@ class InvoiceService:
         if invoice.user_id != user.id:
             raise ForbiddenError("Not your invoice")
 
+        if invoice.stripe_payment_intent_id:
+            intent = stripe.PaymentIntent.retrieve(invoice.stripe_payment_intent_id)
+            return ConfirmPaymentResponse(status=intent.status, payment_intent_id=intent.id,
+                                          client_secret=intent.client_secret)
+
         intent = stripe.PaymentIntent.create(
             amount=invoice.amount_in_cents,
             currency=invoice.currency.value,
+            receipt_email=user.email,
             confirm=True,
             confirmation_token=confirmation_token_id,
             automatic_payment_methods={"enabled": True, "allow_redirects": "never"},
             metadata={"invoice_id": str(invoice_id)},
         )
 
+        invoice.stripe_payment_intent_id = intent.id
+        invoice.status = InvoiceStatus.processing
         await self._session.commit()
-        return ConfirmPaymentResponse(status=intent.status)
+        return ConfirmPaymentResponse(status=intent.status, payment_intent_id=intent.id,
+                                      client_secret=intent.client_secret)
 
     async def handle_webhook(self, payload: bytes, sig_header: str | None) -> None:
         if not sig_header:
@@ -128,4 +140,5 @@ class InvoiceService:
 
     async def _handle_payment_failure(self, event_data: dict) -> None:
         invoice_id = event_data.get("metadata", {}).get("invoice_id")
-        await invoice_crud.update(self._session, {"status": InvoiceStatus.cancelled}, commit=False, id=UUID(invoice_id))
+        await invoice_crud.update(self._session, {"status": InvoiceStatus.cancelled, "stripe_payment_intent_id": None},
+                                  commit=False, id=UUID(invoice_id))

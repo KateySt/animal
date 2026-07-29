@@ -19,5 +19,6 @@ class Currency(StrEnum):
 
 class InvoiceStatus(StrEnum):
     pending = "pending"
+    processing = "processing"
     paid = "paid"
     cancelled = "cancelled"

@@ -5,6 +5,7 @@ from sqlalchemy import column, delete, except_, select, update, values
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.db.models import Permission, Role, role_crud
 from app.db.models.associations import role_permissions, user_roles
@@ -22,19 +23,20 @@ class RoleService:
 
     async def get_role(self, role_id: UUID) -> Role:
         role = await self._session.scalar(
-            select(Role).options(selectinload(Role.permissions).selectinload(Permission.resource)).where(Role.id == role_id)
+            select(Role).options(selectinload(Role.permissions).selectinload(Permission.resource)).where(
+                Role.id == role_id)
         )
         if role is None:
-            raise NotFoundError(f"Role {role_id} not found")
+            raise NotFoundError(ErrorCode.ROLE_NOT_FOUND)
         return role
 
     async def check_role(self, role_id: UUID) -> None:
         if not await role_crud.exists(self._session, id=role_id):
-            raise NotFoundError(f"Role {role_id} not found")
+            raise NotFoundError(ErrorCode.ROLE_NOT_FOUND)
 
     async def create_role(self, payload: RoleCreate) -> RoleRead:
         if await role_crud.exists(self._session, name=payload.name):
-            raise AlreadyExistsError(f"Role '{payload.name}' already exists")
+            raise AlreadyExistsError(ErrorCode.ROLE_ALREADY_EXISTS)
 
         return await role_crud.create(
             self._session,
@@ -62,13 +64,14 @@ class RoleService:
         not_found_permissions = (
             await self._session.scalars(
                 except_(
-                    select(values(column("id", Permission.id.type), name="requested").data([(pid,) for pid in permission_ids]).c.id),
+                    select(values(column("id", Permission.id.type), name="requested").data(
+                        [(pid,) for pid in permission_ids]).c.id),
                     select(Permission.id).where(Permission.id.in_(permission_ids)),
                 )
             )
         ).all()
         if not_found_permissions:
-            raise NotFoundError(f"Permissions not found: {sorted(str(permission) for permission in not_found_permissions)}")
+            raise NotFoundError(ErrorCode.PERMISSIONS_NOT_FOUND)
 
         await self._session.execute(delete(role_permissions).where(role_permissions.c.role_id == role_id))
         for pid in permission_ids:
@@ -83,12 +86,12 @@ class RoleService:
     async def assign_roles_to_user(self, user_id: UUID, role_ids: list[UUID]) -> User:
         user = await self._session.scalar(select(User).options(selectinload(User.roles)).where(User.id == user_id))
         if user is None:
-            raise NotFoundError(f"User {user_id} not found")
+            raise NotFoundError(ErrorCode.USER_NOT_FOUND)
 
         roles = (await self._session.scalars(select(Role).where(Role.id.in_(role_ids)))).all()
         missing = set(role_ids) - {role.id for role in roles}
         if missing:
-            raise NotFoundError(f"Roles not found: {sorted(str(m) for m in missing)}")
+            raise NotFoundError(ErrorCode.ROLES_NOT_FOUND)
 
         user.roles = list(roles)
         await self._bump_permissions_version([user_id])

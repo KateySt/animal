@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import BadRequestError, ForbiddenError, NotFoundError, get_stripe_config
+from app.core.error_codes import ErrorCode
 from app.db.enums import InvoiceStatus
 from app.db.models import HealthLog, Invoice, StripeEvent, User, invoice_crud
 from app.schemas.stripe import ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, InvoiceWithLogsRead
@@ -23,11 +24,10 @@ class InvoiceService:
         }
 
     async def get_by_id(self, invoice_id: UUID) -> InvoiceWithLogsRead:
-        result = await self._session.execute(
-            select(Invoice).where(Invoice.id == invoice_id).options(selectinload(Invoice.health_logs)))
+        result = await self._session.execute(select(Invoice).where(Invoice.id == invoice_id).options(selectinload(Invoice.health_logs)))
         invoice = result.scalar_one_or_none()
         if invoice is None:
-            raise NotFoundError(f"Invoice {invoice_id} not found")
+            raise NotFoundError(ErrorCode.INVOICE_NOT_FOUND)
         return InvoiceWithLogsRead.model_validate(invoice)
 
     async def create(self, payload: InvoiceCreate) -> InvoiceWithLogsRead:
@@ -53,11 +53,11 @@ class InvoiceService:
         )
         invoice = invoice.scalar_one_or_none()
         if invoice is None:
-            raise NotFoundError(f"Invoice {invoice_id} not found")
+            raise NotFoundError(ErrorCode.INVOICE_NOT_FOUND)
         if invoice.status == InvoiceStatus.processing:
-            raise BadRequestError("Invoice payment is already being processed")
+            raise BadRequestError(ErrorCode.INVOICE_ALREADY_PROCESSING)
         if invoice.status != InvoiceStatus.pending:
-            raise BadRequestError(f"Invoice is already {invoice.status}")
+            raise BadRequestError(ErrorCode.INVOICE_ALREADY_FINALIZED)
         return invoice
 
     async def update(self, invoice_id: UUID, payload: InvoiceUpdate) -> InvoiceWithLogsRead:
@@ -91,7 +91,7 @@ class InvoiceService:
     async def confirm_payment(self, invoice_id: UUID, confirmation_token_id: str, user: User) -> ConfirmPaymentResponse:
         invoice = await self.get_by_id_for_update(invoice_id)
         if invoice.user_id != user.id:
-            raise ForbiddenError("Not your invoice")
+            raise ForbiddenError(ErrorCode.INVOICE_WRONG_OWNER)
 
         if invoice.stripe_payment_intent_id:
             intent = stripe.PaymentIntent.retrieve(invoice.stripe_payment_intent_id)
@@ -111,22 +111,20 @@ class InvoiceService:
         invoice.stripe_payment_intent_id = intent.id
         invoice.status = InvoiceStatus.processing
         await self._session.commit()
-        return ConfirmPaymentResponse(status=intent.status, payment_intent_id=intent.id,
-                                      client_secret=intent.client_secret)
+        return ConfirmPaymentResponse(status=intent.status, payment_intent_id=intent.id, client_secret=intent.client_secret)
 
     async def handle_webhook(self, payload: bytes, sig_header: str | None) -> None:
         if not sig_header:
-            raise ForbiddenError("Missing signature header")
+            raise ForbiddenError(ErrorCode.INVOICE_MISSING_SIGNATURE)
 
         try:
             event = stripe.Webhook.construct_event(payload, sig_header, get_stripe_config().STRIPE_WEBHOOK_SECRET)
         except stripe.SignatureVerificationError:
-            raise ForbiddenError("Invalid signature")
+            raise ForbiddenError(ErrorCode.INVOICE_INVALID_SIGNATURE)
 
         existing = await self._session.get(StripeEvent, event["id"])
         if existing:
             return
-
         handler = self._stripe_handlers.get(event["type"])
         if handler:
             await handler(event["data"]["object"].to_dict())
@@ -140,5 +138,6 @@ class InvoiceService:
 
     async def _handle_payment_failure(self, event_data: dict) -> None:
         invoice_id = event_data.get("metadata", {}).get("invoice_id")
-        await invoice_crud.update(self._session, {"status": InvoiceStatus.cancelled, "stripe_payment_intent_id": None},
-                                  commit=False, id=UUID(invoice_id))
+        await invoice_crud.update(
+            self._session, {"status": InvoiceStatus.cancelled, "stripe_payment_intent_id": None}, commit=False, id=UUID(invoice_id)
+        )

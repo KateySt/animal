@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import ScalarResult, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
 from app.core.security import generate_refresh_token, hash_password
 from app.db.models import OAuthAccount, animal_crud, oauth_account_crud, user_crud
@@ -20,19 +21,19 @@ class UserService:
     async def get_by_id(self, user_id: UUID) -> UserInternal:
         user = await user_crud.get(self._session, schema_to_select=UserInternal, return_as_model=True, id=user_id)
         if user is None:
-            raise NotFoundError("User not found")
+            raise NotFoundError(ErrorCode.USER_NOT_FOUND)
         return user
 
     async def get_by_email(self, email: str) -> UserInternal:
         user = await user_crud.get(self._session, schema_to_select=UserInternal, return_as_model=True, email=email)
         if user is None:
-            raise NotFoundError("User not found")
+            raise NotFoundError(ErrorCode.USER_NOT_FOUND)
         return user
 
     async def get_by_animal_id(self, animal_id: UUID) -> UserInternal:
         animal = await animal_crud.get(self._session, id=animal_id)
         if animal is None:
-            raise NotFoundError("Animal not found")
+            raise NotFoundError(ErrorCode.ANIMAL_NOT_FOUND)
         return await self.get_by_id(animal.get("owner_id"))
 
     async def get_by_oauth(self, oauth_name: str, account_id: str) -> UserInternal | None:
@@ -82,12 +83,12 @@ class UserService:
     @staticmethod
     def check_active(user: UserInternal) -> None:
         if not user.is_active:
-            raise UnauthorizedError("Inactive user")
+            raise UnauthorizedError(ErrorCode.INACTIVE_USER)
 
     async def create(self, email: str, password: str) -> UserInternal:
         existing = await user_crud.exists(self._session, email=email)
         if existing:
-            raise AlreadyExistsError("A user with this email already exists")
+            raise AlreadyExistsError(ErrorCode.USER_ALREADY_EXISTS)
 
         return await user_crud.create(
             self._session,

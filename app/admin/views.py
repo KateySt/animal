@@ -30,7 +30,7 @@ class HealthLogAdmin(ModelView):
 
 
 class InvoiceAdmin(ModelView):
-    fields = ["id", "user", "animal", "health_logs", "amount_in_cents", "status", "created_at", "updated_at"]
+    fields = ["id", "user", "animal", "health_logs", "amount_in_cents", "status", "stripe_payment_intent_id", "created_at", "updated_at"]
     exclude_fields_from_list = ["health_logs"]
     sortable_fields = ["status", "amount_in_cents", "created_at"]
     fields_default_sort = [("created_at", True)]

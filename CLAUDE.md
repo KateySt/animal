@@ -125,6 +125,34 @@ Layer order: Models ← FastCRUD ← Services ← Routers. Schemas never import 
 - `/review` — full pipeline: `code-reviewer` → `dep-checker` + `logic-reviewer` → `arbitrator`. Priority: Security > Correctness > blast radius > non-blocking.
 - `/naming` — naming conventions check.
 - `/rest-urls` — REST URL best-practices check.
+- `/plan <feature>` — **use before any non-trivial feature**. Spawns `impl-planner` → fetches live library docs via `lib-versions` → produces a step-by-step implementation plan (files, signatures, migration command, test plan) for approval before code is written.
+
+## Agents (spawned automatically by skills or explicitly via Agent tool)
+
+| Agent | Model | When used |
+|-------|-------|-----------|
+| `impl-planner` | sonnet | Orchestrates `/plan`: reads project, calls `lib-versions`, outputs structured plan |
+| `lib-versions` | haiku (background) | Fetches CURRENT version + API patterns from PyPI/docs before any implementation. Prevents use of deprecated APIs from training data. |
+| `security-auditor` | sonnet | Checks 10 project invariants + OWASP API Top 10. Returns PASS/WARN/BLOCK. Run before merge on auth/router/Stripe changes. |
+| `db-migration-reviewer` | sonnet | Reviews Alembic migration files for destructive ops, missing server_defaults, enum gotchas, index gaps, and zero-downtime risks. Run after `alembic revision --autogenerate`, before `upgrade head`. |
+| `code-reviewer` | sonnet | Orchestrates `/review` pipeline |
+| `dep-checker` | haiku (background) | CVE + version check, called by `code-reviewer` |
+| `logic-reviewer` | sonnet | Deep logic/DB/security review, called by `code-reviewer` |
+| `arbitrator` | sonnet | Resolves conflicts between `dep-checker` and `logic-reviewer` |
+| `fastapi-test-reviewer` | sonnet | Deep test audit, called by `/fastapi-tests` |
+
+## Recommended workflow for new features
+
+```
+1. /plan <feature>          ← get plan + live docs, approve before touching code
+2. implement (Claude writes code)
+3. ruff + mypy auto-run via PostToolUse hook
+4. /arch                    ← verify no layer violations
+5. security-auditor         ← verify invariants (auto on auth/Stripe changes)
+6. db-migration-reviewer    ← if migration was generated
+7. /fastapi-tests           ← run + audit tests
+8. /review                  ← full dep + logic review before PR
+```
 
 ## Environment
 - Venv: `.venv/Scripts/python.exe` (Windows). Run: `uvicorn app.main:app --reload`.

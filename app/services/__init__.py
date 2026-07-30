@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db_session
 from app.services.animal_service import AnimalService
+from app.services.anthropic_chat_service import AnthropicChatService
 from app.services.auth_service import AuthService
 from app.services.health_log_service import HealthLogService
 from app.services.invoice_service import InvoiceService
@@ -58,3 +59,7 @@ def get_auth_service(
     user_service: UserService = Depends(get_user_service),
 ) -> AuthService:
     return AuthService(session, refresh_token_service, user_service)
+
+
+def get_anthropic_chat_service(session: AsyncSession = Depends(get_db_session)) -> AnthropicChatService:
+    return AnthropicChatService(session)

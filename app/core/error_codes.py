@@ -65,3 +65,9 @@ class ErrorCode(Enum):
     RESOURCE_NOT_FOUND = ("resource_not_found", "Resource not found")
     RESOURCE_ALREADY_EXISTS = ("resource_already_exists", "Resource already exists")
     RESOURCE_HAS_PERMISSIONS = ("resource_has_permissions", "Cannot delete resource with existing permissions. Delete permissions first.")
+
+    # Chat
+    CHAT_NOT_FOUND = ("chat_not_found", "Chat not found")
+    CHAT_SESSION_NOT_FOUND = ("chat_session_not_found", "Chat session not found")
+    CHAT_STREAMING_ERROR = ("chat_streaming_error", "Failed to stream chat response")
+    CHAT_OWNER_NOT_MATCH = ("chat_owner_not_match", "Not your chat session")

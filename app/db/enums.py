@@ -28,3 +28,8 @@ class Locale(StrEnum):
     en = "en"
     ru = "ru"
     uk = "uk"
+
+
+class MessageRole(StrEnum):
+    user = "user"
+    assistant = "assistant"

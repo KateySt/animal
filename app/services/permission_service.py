@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.db.models import Permission, permission_crud, resource_crud
 from app.db.models.associations import role_permissions, user_roles
@@ -20,10 +21,10 @@ class PermissionService:
 
     async def create_permission(self, payload: PermissionCreate) -> PermissionRead:
         if not await resource_crud.exists(self._session, id=payload.resource_id):
-            raise NotFoundError(f"Resource {payload.resource_id} not found")
+            raise NotFoundError(ErrorCode.RESOURCE_NOT_FOUND)
 
         if await permission_crud.exists(self._session, resource_id=payload.resource_id, action=payload.action):
-            raise AlreadyExistsError("Permission already exists")
+            raise AlreadyExistsError(ErrorCode.PERMISSION_ALREADY_EXISTS)
 
         return await permission_crud.create(
             self._session,
@@ -34,12 +35,12 @@ class PermissionService:
     async def get_permission(self, permission_id: UUID) -> Permission:
         permission = await permission_crud.get(self._session, id=permission_id)
         if permission is None:
-            raise NotFoundError(f"Permission {permission_id} not found")
+            raise NotFoundError(ErrorCode.PERMISSION_NOT_FOUND)
         return permission
 
     async def check_permission(self, permission_id: UUID) -> None:
         if not await permission_crud.exists(self._session, id=permission_id):
-            raise NotFoundError(f"Permission {permission_id} not found")
+            raise NotFoundError(ErrorCode.PERMISSION_NOT_FOUND)
 
     async def delete_permission(self, permission_id: UUID) -> None:
         await self.check_permission(permission_id)

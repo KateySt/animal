@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import UnauthorizedError
 from app.core.config import get_auth_config
+from app.core.error_codes import ErrorCode
 from app.core.security import (
     generate_refresh_token,
     hash_refresh_token,
@@ -25,7 +26,7 @@ class RefreshTokenService:
             token_hash=hash_refresh_token(refresh_token),
         )
         if token is None:
-            raise UnauthorizedError("Invalid refresh token")
+            raise UnauthorizedError(ErrorCode.INVALID_REFRESH_TOKEN)
         return token
 
     async def create(self, user_id: UUID) -> tuple[str, RefreshTokenInternal]:
@@ -67,4 +68,4 @@ class RefreshTokenService:
                 allow_multiple=True,
                 user_id=refresh_token.user_id,
             )
-            raise UnauthorizedError("Refresh token reuse detected, all sessions revoked")
+            raise UnauthorizedError(ErrorCode.REFRESH_TOKEN_REUSE)

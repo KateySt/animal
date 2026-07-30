@@ -14,10 +14,6 @@ from app.services.role_service import RoleService
 from app.services.user_service import UserService
 
 
-def get_animal_service(session: AsyncSession = Depends(get_db_session)) -> AnimalService:
-    return AnimalService(session)
-
-
 def get_health_log_service(session: AsyncSession = Depends(get_db_session)) -> HealthLogService:
     return HealthLogService(session)
 
@@ -36,6 +32,13 @@ def get_refresh_token_service(session: AsyncSession = Depends(get_db_session)) -
 
 def get_user_service(session: AsyncSession = Depends(get_db_session)) -> UserService:
     return UserService(session)
+
+
+def get_animal_service(
+    session: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service)
+) -> AnimalService:
+    return AnimalService(session, user_service)
 
 
 def get_resource_service(session: AsyncSession = Depends(get_db_session)) -> ResourceService:

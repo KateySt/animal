@@ -22,3 +22,9 @@ class InvoiceStatus(StrEnum):
     processing = "processing"
     paid = "paid"
     cancelled = "cancelled"
+
+
+class Locale(StrEnum):
+    en = "en"
+    ru = "ru"
+    uk = "uk"

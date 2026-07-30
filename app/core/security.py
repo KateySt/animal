@@ -6,8 +6,9 @@ from typing import Any
 import bcrypt
 import jwt
 
-from app.core import ForbiddenError
+from app.core import UnauthorizedError
 from app.core.config import get_auth_config
+from app.core.error_codes import ErrorCode
 from app.db import TokenType
 from app.db.models import User
 
@@ -38,7 +39,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, get_auth_config().ACCESS_TOKEN_SECRET, algorithms=[get_auth_config().JWT_ALGORITHM])
     except jwt.PyJWTError:
-        raise ForbiddenError("Invalid or expired token")
+        raise UnauthorizedError(ErrorCode.INVALID_TOKEN)
 
 
 def generate_refresh_token() -> str:

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from starlette.responses import RedirectResponse
 
 from app.core import get_auth_config
 from app.core.cookies import delete_refresh_cookie, set_refresh_cookie
@@ -59,12 +60,14 @@ async def google_authorize(request: Request) -> Auth2Redirect:
     return await google.authorize_redirect(request, redirect_uri=get_auth_config().GOOGLE_REDIRECT_URI)
 
 
-@router.get("/google/callback", response_model=Token)
+@router.get("/google/callback")
 async def google_callback(
-    response: Response,
     request: Request,
     service: AuthService = Depends(get_auth_service),
-) -> Token:
+):
     tokens = await service.google_callback(await oauth.google.authorize_access_token(request))
-    set_refresh_cookie(response, tokens)
-    return Token(access_token=tokens.access_token)
+    redirect = RedirectResponse(
+        url=f"{get_auth_config().FRONTEND_URL}/auth/google/callback?access_token={tokens.access_token}"
+    )
+    set_refresh_cookie(redirect, tokens)
+    return redirect

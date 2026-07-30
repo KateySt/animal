@@ -48,7 +48,10 @@ setup_admin(app)
 
 @app.exception_handler(CustomError)
 async def app_error_handler(_: Request, error: CustomError) -> JSONResponse:
-    return JSONResponse(status_code=error.status_code, content={"detail": error.detail}, headers=error.headers)
+    content: dict = {"detail": error.detail}
+    if error.error_code is not None:
+        content["error_code"] = error.error_code
+    return JSONResponse(status_code=error.status_code, content=content, headers=error.headers)
 
 
 app.include_router(v1_router)

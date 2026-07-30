@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import decode_access_token
 from app.db import TokenType
@@ -25,11 +26,11 @@ async def get_current_principal(
     session: AsyncSession = Depends(get_db_session),
 ) -> Principal:
     if token is None:
-        raise UnauthorizedError("Not authenticated", headers={"WWW-Authenticate": "Bearer"})
+        raise UnauthorizedError(ErrorCode.NOT_AUTHENTICATED, headers={"WWW-Authenticate": "Bearer"})
 
     payload = decode_access_token(token)
     if payload is None or payload.get("type") != TokenType.access:
-        raise UnauthorizedError("Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
+        raise UnauthorizedError(ErrorCode.INVALID_TOKEN, headers={"WWW-Authenticate": "Bearer"})
 
     user_id = uuid.UUID(payload.get("sub"))
     token_permissions_version: int = payload.get("permissions_version", 0)
@@ -39,13 +40,13 @@ async def get_current_principal(
         result = await session.execute(select(User.permissions_version).where(User.id == user_id))
         current_permissions_version = result.scalar_one_or_none()
         if current_permissions_version is None:
-            raise UnauthorizedError("User not found", headers={"WWW-Authenticate": "Bearer"})
+            raise UnauthorizedError(ErrorCode.USER_NOT_FOUND, headers={"WWW-Authenticate": "Bearer"})
         await redis_service.set_cache(f"permissions_version:{user_id}", current_permissions_version, ttl=3600)
     else:
         current_permissions_version = int(cached_permissions_version)
 
     if token_permissions_version < current_permissions_version:
-        raise UnauthorizedError("Token invalidated, please refresh", headers={"WWW-Authenticate": "Bearer"})
+        raise UnauthorizedError(ErrorCode.TOKEN_INVALIDATED, headers={"WWW-Authenticate": "Bearer"})
 
     return Principal(
         user_id=user_id,
@@ -60,7 +61,7 @@ def require_scopes(*scopes: str) -> Callable:
             return principal
         for scope in scopes:
             if scope not in principal.scopes:
-                raise ForbiddenError(f"Missing scope: {scope}")
+                raise ForbiddenError(ErrorCode.MISSING_SCOPE)
         return principal
 
     return _check
@@ -74,10 +75,10 @@ def require_roles(*role_names: str) -> Callable:
         if principal.is_superuser:
             return principal
         if user is None or not user.is_active:
-            raise UnauthorizedError("User not found or inactive")
+            raise UnauthorizedError(ErrorCode.INACTIVE_USER)
         user_role_names = {role.name for role in user.roles}
         if not user_role_names.intersection(role_names):
-            raise ForbiddenError(f"Required role(s): {', '.join(role_names)}")
+            raise ForbiddenError(ErrorCode.MISSING_ROLE)
         return principal
 
     return _check
@@ -85,7 +86,7 @@ def require_roles(*role_names: str) -> Callable:
 
 async def require_superuser(principal: Principal = Depends(get_current_principal)) -> Principal:
     if not principal.is_superuser:
-        raise ForbiddenError("Superuser access required")
+        raise ForbiddenError(ErrorCode.SUPERUSER_REQUIRED)
     return principal
 
 
@@ -102,5 +103,5 @@ async def get_current_user(
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
-        raise UnauthorizedError("User not found or inactive")
+        raise UnauthorizedError(ErrorCode.INACTIVE_USER)
     return user

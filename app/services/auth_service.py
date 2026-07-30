@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import BadRequestError
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import UnauthorizedError
 from app.core.security import (
     create_access_token,
@@ -32,7 +33,7 @@ class AuthService:
     async def login(self, email: str, password: str) -> IssuedTokens:
         user = await self._user_service.get_by_email(email)
         if not verify_password(password, user.hashed_password):
-            raise UnauthorizedError("Invalid email or password")
+            raise UnauthorizedError(ErrorCode.INVALID_CREDENTIALS)
         self._user_service.check_active(user)
         return await self._issue_tokens(user)
 
@@ -49,7 +50,7 @@ class AuthService:
     async def refresh(self, raw_refresh: str) -> IssuedTokens:
         refresh_token = await self._refresh_token_service.get(raw_refresh)
         if refresh_token.expires_at < datetime.now(UTC):
-            raise UnauthorizedError("Refresh token expired")
+            raise UnauthorizedError(ErrorCode.REFRESH_TOKEN_EXPIRED)
         await self._refresh_token_service.revoke_family(refresh_token)
         user = await self._user_service.get_by_id(refresh_token.user_id)
         self._user_service.check_active(user)
@@ -65,10 +66,10 @@ class AuthService:
         await self._refresh_token_service.revoke(raw_refresh)
 
     async def google_callback(self, token: dict) -> IssuedTokens:
-        claims = token['userinfo']
+        claims = token["userinfo"]
         account_email = claims.get("email")
         if not account_email or not claims.get("email_verified"):
-            raise BadRequestError("Google account has problem with email")
+            raise BadRequestError(ErrorCode.GOOGLE_EMAIL_ERROR)
 
         user = await self._user_service.get_by_oauth("google", claims["sub"])
         if user is None:

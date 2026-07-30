@@ -57,6 +57,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pytest_on_stop.sh",
+            "statusMessage": "Running pytest on changed code..."
+          }
+        ]
+      }
     ]
   },
   "outputStyle": "default",

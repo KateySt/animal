@@ -92,7 +92,7 @@ class AnimalService:
                     animal.translations.append(new_translation)
 
         await self._session.commit()
-        return animal
+        return await self.get_animal_by_id(id)
 
     async def delete_animal(self, id: UUID) -> None:
         await self.get_animal_by_id(id)

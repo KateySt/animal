@@ -1,114 +1,77 @@
 ---
 name: fastapi-tests
 description: >
-  Run and audit the pytest suite for the Animal Shelter API against FastAPI +
-  async SQLAlchemy testing best practices. Use when asked to run tests, write
-  new tests, review test quality, diagnose flaky/failing tests, or check test
-  coverage before a PR. Delegates deep audits to the fastapi-test-reviewer agent.
+  Run and audit the pytest suite for the Animal Shelter API. Use when running tests,
+  writing new tests, diagnosing failures, or checking coverage before a PR.
 ---
 
-# FastAPI Test Runner & Best-Practices Checker — Animal Shelter API
+# /fastapi-tests — Test Runner & Checker
 
-## How to run the suite
-
-Always use the project venv. From the repo root:
+## Run
 
 ```bash
-# Full suite (quiet, short traceback)
-.venv/Scripts/python.exe -m pytest -q --tb=short
-
-# One marker
-.venv/Scripts/python.exe -m pytest -q -m unit
-.venv/Scripts/python.exe -m pytest -q -m integration
-
-# One file / one test
-.venv/Scripts/python.exe -m pytest tests/integration/test_auth.py -q
-.venv/Scripts/python.exe -m pytest "tests/integration/test_auth.py::test_login_success" -q
-
-# Re-run only what failed last time, fail fast
-.venv/Scripts/python.exe -m pytest --lf -x -q
+.venv/Scripts/python.exe -m pytest -q --tb=short          # full suite
+.venv/Scripts/python.exe -m pytest -q -m integration      # integration only
+.venv/Scripts/python.exe -m pytest tests/integration/test_auth.py -q  # one file
+.venv/Scripts/python.exe -m pytest --lf -x -q             # last-failed, stop on first
 ```
 
-Config lives in `[tool.pytest.ini_options]` in `pyproject.toml`:
-`asyncio_mode = "auto"` (no need to mark every coroutine), `testpaths = ["tests"]`,
-markers `unit` and `integration`. The test DB URL comes from `get_test_config()`.
+Config in `pyproject.toml`: `asyncio_mode = "auto"`, markers `unit` / `integration`.
 
-## Test architecture in this repo (know it before touching tests)
+## Test infrastructure (read before touching tests)
 
-- **`tests/conftest.py`** — session-scoped schema create/drop, per-test `db_session`
-  wrapped in an outer transaction + savepoint that **rolls back after every test**
-  (no data leaks between tests). Fixtures: `client`, `auth_client`,
-  `superuser_client`, `read_only_client`, `user`, `bind_factories`.
-- **`tests/integration/conftest.py`** — `autouse` binds factories to the rolled-back session.
-- **`tests/factories.py`** — factory-boy factories. Bind to `db_session`, never open your own.
-- Dependency overrides (`app.dependency_overrides`) inject the test session and a fake
-  `Principal` — this is how auth is bypassed. Always clear overrides in the fixture teardown.
+- `tests/conftest.py` — session-scoped schema, per-test `db_session` with savepoint rollback. Fixtures: `client`, `auth_client`, `superuser_client`, `read_only_client`, `user`, `bind_factories`.
+- `tests/factories.py` — factory-boy factories bound to `db_session`.
+- Auth bypass via `app.dependency_overrides` (fake `Principal`). Always clear overrides in teardown.
 
-## FastAPI / async-SQLAlchemy testing best practices — the checklist
+## Checklist
 
-Run this checklist whenever writing or reviewing tests.
-
-### Isolation & fixtures
-- [ ] Every test runs inside the rolled-back `db_session` — **no manual commits** that escape the savepoint.
-- [ ] Use the existing `client` / `auth_client` fixtures; don't build a fresh `AsyncClient` inline.
-- [ ] Factories bound to the test session (`bind_factories`), never `AsyncSessionLocal()`.
-- [ ] `app.dependency_overrides` is always cleared in teardown (leak → poisons later tests).
-- [ ] No `scope="session"` on fixtures that hold data — only schema/engine may be session-scoped.
+### Isolation
+- [ ] No manual `commit()` escaping the savepoint
+- [ ] Factories use `db_session`, never `AsyncSessionLocal()`
+- [ ] `dependency_overrides` cleared in teardown
 
 ### Async correctness
-- [ ] `httpx.AsyncClient` with `ASGITransport(app=app)` — never the sync `TestClient` for async endpoints.
-- [ ] `await` on every client call and every `session.flush/execute`; no un-awaited coroutines.
-- [ ] `LifespanManager(app)` wraps clients that need startup (Redis/cache) — matches existing fixtures.
-- [ ] No `asyncio.run()` / `loop.run_until_complete()` inside tests — pytest-asyncio owns the loop.
+- [ ] `httpx.AsyncClient` + `ASGITransport(app=app)` — not sync `TestClient`
+- [ ] Every client call and session op is awaited
+- [ ] No `asyncio.run()` inside tests
 
-### HTTP contract assertions
-- [ ] Assert **exact status code** (`201` create, `204` delete, `401/403/404/409/422` errors), not just `< 400`.
-- [ ] Assert the JSON **body/`response_model` shape**, not only the status.
-- [ ] Error responses assert the `CustomError` mapping (e.g. `AlreadyExistsError` → `409`).
-- [ ] `WWW-Authenticate` header asserted on `401` paths (project invariant #2).
+### HTTP contracts
+- [ ] Exact status codes (`201`, `204`, `401`, `403`, `404`, `409`, `422`) — not `< 400`
+- [ ] Response body shape asserted, not just status
+- [ ] `WWW-Authenticate` header asserted on 401 (project invariant)
+- [ ] `CustomError` → status mapping exercised
 
-### Coverage of behavior, not lines
-- [ ] Happy path **and** the failure path for each endpoint (missing scope, not found, duplicate, bad body).
-- [ ] RBAC: a `read_only_client` is rejected on write scopes; `superuser_client` bypasses; `auth_client` in-between.
-- [ ] Auth flows: refresh **rotation** and **reuse-detection** (reused token revokes the chain) are tested.
-- [ ] Webhook route tested **unauthenticated** with a signature check (invariant #3), not with auth bypass.
-- [ ] Boundary inputs: empty lists, wrong enum values, oversized fields, null vs. missing.
+### Coverage
+- [ ] Happy path + failure path per endpoint (missing scope, not found, duplicate, bad body)
+- [ ] RBAC: `read_only_client` rejected on writes; `superuser_client` bypass; `auth_client` scoped
+- [ ] Auth: refresh rotation + reuse-detection (revoked token revokes chain)
+- [ ] Webhook tested **unauthenticated** with signature verification
+- [ ] Boundary inputs: empty lists, invalid enums, null vs. missing
 
-### Determinism / no flakiness
-- [ ] No dependence on test execution order or on rows from another test.
-- [ ] Time/UUID/Stripe/Redis calls are stubbed or use fixed fakes — no real network, no `sleep`.
-- [ ] No hard-coded PKs that collide across tests; use factories / `uuid4`.
+### Flakiness
+- [ ] No cross-test ordering dependence
+- [ ] Stripe / Redis / time / UUID stubbed — no real network, no `sleep`
 
-### Anti-patterns to flag
-- Asserting on `response.status_code < 400` instead of the precise code.
-- `try/except: pass` swallowing an assertion.
-- Sharing mutable state at module scope between tests.
-- Testing framework internals (that FastAPI validates) instead of app behavior.
-- Overusing `superuser_client` so real scope checks are never exercised.
+## Workflow
 
-## Workflow when invoked
+1. Run suite → read output
+2. **Green**: run checklist on touched test files, report gaps ordered by impact
+3. **Red**: show failing test + traceback tail, diagnose (product bug vs. test bug), fix, re-run
+4. Deep audit → delegate to `fastapi-test-reviewer` agent
 
-1. **Run** the relevant scope first (`-m integration` or a single file) and read the output.
-2. If **green**: run the best-practices checklist over the touched test files; report gaps as a
-   short bullet list ordered by importance. Offer to add the missing cases.
-3. If **red**: show the failing test names + the assertion/traceback tail. Diagnose whether it's a
-   **product bug** (fix app code) or a **test bug** (fix the test). State which, then fix.
-4. After any fix to app or test code, **re-run** the affected tests and confirm they pass before finishing.
-5. For a deep, file-by-file audit, delegate to the `fastapi-test-reviewer` agent and summarize its verdict.
-
-## Reporting format
+## Report format
 
 ```
 ### Test run
-<command> → N passed / M failed / K skipped
+<cmd> → N passed / M failed / K skipped
 
-### Failures (if any)
-- test_name — one-line cause → fix applied (app bug | test bug)
+### Failures
+- test_name — cause → fix (app bug | test bug)
 
-### Best-practice gaps
-- [file] missing failure-path test for <endpoint>
-- [file] asserts status < 400 instead of exact 201
+### Gaps
+- [file] missing failure-path for <endpoint>
 
 ### Verdict
-PASS / NEEDS-WORK + one sentence.
+PASS / NEEDS-WORK — one sentence
 ```

@@ -19,6 +19,7 @@ class ChatSession(Base, IDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str | None] = mapped_column(String(255))
     summary: Mapped[str | None] = mapped_column(Text)
+    last_summarized_message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     messages: Mapped[list[ChatMessage]] = relationship(
         "ChatMessage",

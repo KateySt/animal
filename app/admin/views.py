@@ -57,7 +57,7 @@ class InvoiceAdmin(ModelView):
 
 
 class ChatSessionAdmin(ModelView):
-    fields = ["id", "user", "title", "summary", "messages", "created_at", "updated_at"]
+    fields = ["id", "user", "title", "summary", "last_summarized_message_id", "messages", "created_at", "updated_at"]
     exclude_fields_from_list = ["messages", "summary"]
     searchable_fields = ["title"]
     sortable_fields = ["title", "created_at"]

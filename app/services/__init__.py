@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db_session
 from app.services.animal_service import AnimalService
+from app.services.anthropic_chat_service import AnthropicChatService
 from app.services.auth_service import AuthService
+from app.services.chat_session_service import ChatSessionService
 from app.services.health_log_service import HealthLogService
 from app.services.invoice_service import InvoiceService
 from app.services.permission_service import PermissionService
@@ -34,10 +36,8 @@ def get_user_service(session: AsyncSession = Depends(get_db_session)) -> UserSer
     return UserService(session)
 
 
-def get_animal_service(
-    session: AsyncSession = Depends(get_db_session),
-    user_service: UserService = Depends(get_user_service)
-) -> AnimalService:
+def get_animal_service(session: AsyncSession = Depends(get_db_session),
+                       user_service: UserService = Depends(get_user_service)) -> AnimalService:
     return AnimalService(session, user_service)
 
 
@@ -58,3 +58,14 @@ def get_auth_service(
     user_service: UserService = Depends(get_user_service),
 ) -> AuthService:
     return AuthService(session, refresh_token_service, user_service)
+
+
+def get_chat_session_service(session: AsyncSession = Depends(get_db_session)) -> ChatSessionService:
+    return ChatSessionService(session)
+
+
+def get_anthropic_chat_service(
+    session: AsyncSession = Depends(get_db_session),
+    session_service: ChatSessionService = Depends(get_chat_session_service),
+) -> AnthropicChatService:
+    return AnthropicChatService(session, session_service)

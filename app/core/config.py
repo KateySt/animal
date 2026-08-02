@@ -70,6 +70,22 @@ class StripeConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class AnthropicConfig(BaseSettings):
+    ANTHROPIC_API_KEY: str
+    ANTHROPIC_MODEL: str
+    ANTHROPIC_MAX_TOKEN: int
+    ANTHROPIC_TEMPERATURE: float = 1.0
+    ANTHROPIC_TOP_K: int = 40
+
+    ANTHROPIC_TITLE_MAX_TOKEN: int
+    ANTHROPIC_SUMMERY_MAX_TOKEN: int
+
+    SUMMARY_EVERY_N: int = 10
+    RECENT_WINDOW: int = 10
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
 class TestConfig(BaseSettings):
     DB_NAME: str
     DB_USER: str
@@ -83,6 +99,11 @@ class TestConfig(BaseSettings):
     @property
     def async_database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+
+@lru_cache
+def get_anthropic_config() -> AnthropicConfig:
+    return AnthropicConfig()
 
 
 @lru_cache

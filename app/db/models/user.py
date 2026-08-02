@@ -29,3 +29,4 @@ class User(Base, IDMixin, TimestampMixin):
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(lazy="noload", cascade="all, delete-orphan")
     animals: Mapped[list[Animal]] = relationship("Animal", back_populates="owner")
     invoices: Mapped[list[Invoice]] = relationship("Invoice", back_populates="user", lazy="noload")
+    chat_sessions: Mapped[list[ChatSession]] = relationship("ChatSession", back_populates="user", lazy="noload", cascade="all, delete-orphan")

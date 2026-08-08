@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import AlreadyExistsError, NotFoundError
@@ -17,20 +18,23 @@ class PermissionService:
         self._session = session
 
     async def list_permissions(self) -> dict:
-        return await permission_crud.get_multi(self._session, limit=None, return_total_count=False)
+        result = await self._session.execute(select(Permission).options(selectinload(Permission.resource)))
+        return {"data": [PermissionRead.model_validate(permission) for permission in result.scalars().all()]}
 
-    async def create_permission(self, payload: PermissionCreate) -> PermissionRead:
+    async def create_permission(self, payload: PermissionCreate) -> Permission:
         if not await resource_crud.exists(self._session, id=payload.resource_id):
             raise NotFoundError(ErrorCode.RESOURCE_NOT_FOUND)
 
         if await permission_crud.exists(self._session, resource_id=payload.resource_id, action=payload.action):
             raise AlreadyExistsError(ErrorCode.PERMISSION_ALREADY_EXISTS)
 
-        return await permission_crud.create(
-            self._session,
-            Permission(resource_id=payload.resource_id, action=payload.action),
-            schema_to_select=PermissionRead,
+        await permission_crud.create(self._session, payload)
+        result = await self._session.execute(
+            select(Permission)
+            .where(Permission.resource_id == payload.resource_id, Permission.action == payload.action)
+            .options(selectinload(Permission.resource))
         )
+        return result.scalar_one()
 
     async def get_permission(self, permission_id: UUID) -> Permission:
         permission = await permission_crud.get(self._session, id=permission_id)

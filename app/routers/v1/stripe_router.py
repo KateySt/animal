@@ -6,7 +6,8 @@ from starlette import status
 from app.core.dependencies import get_current_user, require_roles
 from app.db.models import User
 from app.schemas import Principal
-from app.schemas.stripe import ConfirmPaymentRequest, ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, InvoiceWithLogsRead
+from app.schemas.stripe import ConfirmPaymentRequest, ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, \
+    InvoiceWithLogsRead
 from app.services import InvoiceService, get_invoice_service
 
 router = APIRouter()
@@ -21,6 +22,22 @@ async def create_invoice(
     return await service.create(payload)
 
 
+@router.get("/", response_model=list[InvoiceWithLogsRead])
+async def list_all_invoices(
+        service: InvoiceService = Depends(get_invoice_service),
+        _: Principal = Depends(require_roles("vet")),
+) -> list[InvoiceWithLogsRead]:
+    return await service.get_all()
+
+
+@router.get("/me", response_model=list[InvoiceWithLogsRead])
+async def list_my_invoices(
+        service: InvoiceService = Depends(get_invoice_service),
+        user: User = Depends(get_current_user),
+) -> list[InvoiceWithLogsRead]:
+    return await service.get_all_for_user(user.id)
+
+
 @router.get("/{invoice_id}", response_model=InvoiceWithLogsRead)
 async def get_invoice(
     invoice_id: UUID,
@@ -32,10 +49,10 @@ async def get_invoice(
 
 @router.patch("/{invoice_id}", response_model=InvoiceWithLogsRead)
 async def update_invoice(
-    invoice_id: UUID,
-    payload: InvoiceUpdate,
-    service: InvoiceService = Depends(get_invoice_service),
-    _: Principal = Depends(require_roles("vet")),
+        invoice_id: UUID,
+        payload: InvoiceUpdate,
+        service: InvoiceService = Depends(get_invoice_service),
+        _: Principal = Depends(require_roles("vet", "admin")),
 ) -> InvoiceWithLogsRead:
     return await service.update(invoice_id, payload)
 

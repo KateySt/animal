@@ -30,6 +30,16 @@ class InvoiceService:
             raise NotFoundError(ErrorCode.INVOICE_NOT_FOUND)
         return InvoiceWithLogsRead.model_validate(invoice)
 
+    async def get_all_for_user(self, user_id: UUID) -> list[InvoiceWithLogsRead]:
+        result = await self._session.execute(
+            select(Invoice).where(Invoice.user_id == user_id).options(selectinload(Invoice.health_logs))
+        )
+        return [InvoiceWithLogsRead.model_validate(invoice) for invoice in result.scalars().all()]
+
+    async def get_all(self) -> list[InvoiceWithLogsRead]:
+        result = await self._session.execute(select(Invoice).options(selectinload(Invoice.health_logs)))
+        return [InvoiceWithLogsRead.model_validate(invoice) for invoice in result.scalars().all()]
+
     async def create(self, payload: InvoiceCreate) -> InvoiceWithLogsRead:
         user = await self._user_service.get_by_animal_id(payload.animal_id)
         result = await self._session.execute(select(HealthLog).where(HealthLog.id.in_(payload.health_logs)))

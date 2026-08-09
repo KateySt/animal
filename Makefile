@@ -1,4 +1,4 @@
-.PHONY: install run dev test lint format migrate upgrade downgrade shell
+.PHONY: install run dev test lint format migrate upgrade downgrade shell stripe-webhook
 
 install:
 	poetry install
@@ -27,6 +27,9 @@ format:
 
 check: lint
 	poetry run mypy app
+
+stripe-webhook:
+	stripe listen --forward-to localhost:8000/api/v1/stripe/webhook
 
 migrate:
 	poetry run alembic revision --autogenerate -m "$(msg)"

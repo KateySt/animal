@@ -2,7 +2,7 @@ import datetime
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db import Gender, MessageRole
 from app.schemas.animal import AnimalTranslationRead, HealthLogTranslationRead
@@ -13,7 +13,7 @@ class ChatSessionUpdate(BaseModel):
 
 
 class SendMessageRequest(BaseModel):
-    content: str
+    content: str = Field(..., description="The content of the message", min_length=1, max_length=500)
 
 
 class ChatMessage(BaseModel):

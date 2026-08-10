@@ -10,8 +10,8 @@ from app.services.permission_service import PermissionService
 router = APIRouter(dependencies=[Depends(require_superuser)])
 
 
-@router.get("")
-async def list_permissions(service: PermissionService = Depends(get_permission_service)) -> dict:
+@router.get("", response_model=list[PermissionRead])
+async def list_permissions(service: PermissionService = Depends(get_permission_service)) -> list[PermissionRead]:
     return await service.list_permissions()
 
 

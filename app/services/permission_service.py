@@ -17,9 +17,9 @@ class PermissionService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_permissions(self) -> dict:
+    async def list_permissions(self) -> list[PermissionRead]:
         result = await self._session.execute(select(Permission).options(selectinload(Permission.resource)))
-        return {"data": [PermissionRead.model_validate(permission) for permission in result.scalars().all()]}
+        return [PermissionRead.model_validate(permission) for permission in result.scalars().all()]
 
     async def create_permission(self, payload: PermissionCreate) -> Permission:
         if not await resource_crud.exists(self._session, id=payload.resource_id):

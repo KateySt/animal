@@ -1,13 +1,17 @@
 import anthropic
+import httpx2
 from anthropic.types import Message, MessageParam
-
 from app.core.config import get_anthropic_config
 from app.core.prompts import SYSTEM_PROMPT
 from app.core.prompts.system_prompt import ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE, SUMMARY_PROMPT, TITLE_PROMPT
 from app.core.tools.definitions import TOOL_DEFINITIONS
 from app.db import MessageRole
 
-client = anthropic.AsyncAnthropic(api_key=get_anthropic_config().ANTHROPIC_API_KEY)
+client = anthropic.AsyncAnthropic(
+    api_key=get_anthropic_config().ANTHROPIC_API_KEY,
+    max_retries=3,
+    timeout=60.0,
+)
 
 
 def _first_text(response: Message) -> str:
@@ -26,7 +30,8 @@ async def generate_title(first_message: str) -> str:
 
 async def generate_summary(previous_summary: str | None, new_transcript: str) -> str:
     if previous_summary:
-        content = ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE.format(previous_summary=previous_summary, new_transcript=new_transcript)
+        content = ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE.format(previous_summary=previous_summary,
+                                                             new_transcript=new_transcript)
     else:
         content = new_transcript
     response = await client.messages.create(
@@ -44,6 +49,7 @@ def stream(messages: list[MessageParam]):
         max_tokens=get_anthropic_config().ANTHROPIC_MAX_TOKEN,
         temperature=get_anthropic_config().ANTHROPIC_TEMPERATURE,
         top_k=get_anthropic_config().ANTHROPIC_TOP_K,
+        cache_control={"type": "ephemeral"},
         system=SYSTEM_PROMPT,
         messages=messages,
         tools=TOOL_DEFINITIONS,

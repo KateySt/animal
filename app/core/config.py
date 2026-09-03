@@ -86,6 +86,23 @@ class AnthropicConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class MinioConfig(BaseSettings):
+    MINIO_ACCESS_KEY: str
+    MINIO_SECRET_KEY: str
+    MINIO_BUCKET_NAME: str
+    MINIO_HOST: str
+    MINIO_REGION: str
+    MINIO_SECURE: bool = False
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @computed_field
+    @property
+    def bucket_url(self) -> str:
+        scheme = "https" if self.MINIO_SECURE else "http"
+        return f"{scheme}://{self.MINIO_HOST}/{self.MINIO_BUCKET_NAME}/"
+
+
 class TestConfig(BaseSettings):
     DB_NAME: str
     DB_USER: str
@@ -99,6 +116,11 @@ class TestConfig(BaseSettings):
     @property
     def async_database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+
+@lru_cache
+def get_minio_config() -> MinioConfig:
+    return MinioConfig()
 
 
 @lru_cache

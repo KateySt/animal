@@ -4,10 +4,6 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
-
 from app.core.anthropic import generate_summary, generate_title, serialize_content_block, serialize_transcript, stream
 from app.core.config import get_anthropic_config
 from app.db import MessageRole
@@ -17,6 +13,11 @@ from app.db.models.invoice import Invoice
 from app.db.models.user import User
 from app.schemas.chat import AnimalToolData, HealthLogToolData, InvoiceToolData
 from app.services.chat_session_service import ChatSessionService
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
+
+from app.core.logger import log
 
 
 class AnthropicChatService:
@@ -69,8 +70,10 @@ class AnthropicChatService:
 
         user_count = await self._session_service.count_user_messages(chat_session.id)
         if user_count % get_anthropic_config().SUMMARY_EVERY_N == 0:
-            new_rows = await self._session_service.get_messages_since_summary(chat_session.id,
-                                                                       chat_session.last_summarized_message_id)
+            new_rows = await self._session_service.get_messages_since_summary(
+                chat_session.id,
+                chat_session.last_summarized_message_id
+            )
             if new_rows:
                 summary = await generate_summary(chat_session.summary, serialize_transcript(new_rows))
                 last_id = await self._session_service.get_last_message_id(chat_session.id)
@@ -97,7 +100,8 @@ class AnthropicChatService:
                 final_message = await active_stream.get_final_message()
 
         except Exception as error:
-            yield f"[error: streaming failed]{error}"
+            yield f"[error: final streaming failed]"
+            log.error(f"Error streaming final response: {error}")
             return
 
         if final_message:
@@ -136,5 +140,6 @@ class AnthropicChatService:
                     )
 
             except Exception as error:
-                yield f"[error: final streaming failed]{error}"
+                yield f"[error: final streaming failed]"
+                log.error(f"Error streaming final response: {error}")
                 return

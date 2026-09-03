@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.db.models.oauth_account import OAuthAccount
     from app.db.models.refresh_token import RefreshToken
     from app.db.models.role import Role
+    from app.db.models.chat_session import ChatSession
 
 
 class User(Base, IDMixin, TimestampMixin):
@@ -23,6 +24,7 @@ class User(Base, IDMixin, TimestampMixin):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
     permissions_version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"), nullable=False)
+    avatar_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     roles: Mapped[list[Role]] = relationship(secondary="user_roles", lazy="selectin", back_populates="users")
     oauth_accounts: Mapped[list[OAuthAccount]] = relationship(lazy="selectin", cascade="all, delete-orphan")

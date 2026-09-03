@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
-
+from app.core.config import get_minio_config
 from app.schemas.role import RoleRead
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 
 class UserInternal(BaseModel):
@@ -55,6 +55,14 @@ class UserRead(BaseModel):
     is_superuser: bool
     is_verified: bool
     roles: list[RoleRead] = []
+    avatar_key: str | None = Field(default=None, exclude=True)
+
+    @computed_field
+    @property
+    def avatar_url(self) -> str | None:
+        if self.avatar_key is None:
+            return None
+        return get_minio_config().bucket_url + self.avatar_key
 
 
 class UserUpdate(BaseModel):

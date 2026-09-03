@@ -1,6 +1,3 @@
-from fastapi import FastAPI
-from starlette_admin.contrib.sqla import Admin
-
 from app.admin.auth import AdminAuthProvider
 from app.admin.views import (
     AnimalAdmin,
@@ -8,6 +5,7 @@ from app.admin.views import (
     ChatSessionAdmin,
     HealthLogAdmin,
     InvoiceAdmin,
+    OAuthAccountAdmin,
     PermissionAdmin,
     ResourceAdmin,
     RoleAdmin,
@@ -19,7 +17,10 @@ from app.db.models.chat_message import ChatMessage
 from app.db.models.chat_session import ChatSession
 from app.db.models.health_log import HealthLog
 from app.db.models.invoice import Invoice
+from app.db.models.oauth_account import OAuthAccount
 from app.db.session import engine
+from fastapi import FastAPI
+from starlette_admin.contrib.sqla import Admin
 
 
 def setup_admin(app: FastAPI) -> None:
@@ -31,13 +32,46 @@ def setup_admin(app: FastAPI) -> None:
     )
 
     admin.add_view(UserAdmin(User, icon="fa-solid fa-user", name="User", label="Users"))
-    admin.add_view(AnimalAdmin(Animal, icon="fa-solid fa-paw", name="Animal", label="Animals"))
-    admin.add_view(HealthLogAdmin(HealthLog, icon="fa-solid fa-notes-medical", name="Health Log", label="Health Logs"))
-    admin.add_view(InvoiceAdmin(Invoice, icon="fa-solid fa-file-invoice-dollar", name="Invoice", label="Invoices"))
-    admin.add_view(ChatSessionAdmin(ChatSession, icon="fa-solid fa-comments", name="Chat Session", label="Chat Sessions"))
-    admin.add_view(ChatMessageAdmin(ChatMessage, icon="fa-solid fa-message", name="Chat Message", label="Chat Messages"))
+    admin.add_view(
+        OAuthAccountAdmin(
+            OAuthAccount,
+            icon="fa-solid fa-key",
+            name="OAuth Account",
+            label="OAuth Accounts",
+        )
+    )
+
     admin.add_view(RoleAdmin(Role, icon="fa-solid fa-user-tag", name="Role", label="Roles"))
     admin.add_view(ResourceAdmin(Resource, icon="fa-solid fa-cubes", name="Resource", label="Resources"))
-    admin.add_view(PermissionAdmin(Permission, icon="fa-solid fa-shield-halved", name="Permission", label="Permissions"))
+    admin.add_view(
+        PermissionAdmin(
+            Permission,
+            icon="fa-solid fa-shield-halved",
+            name="Permission",
+            label="Permissions"
+        )
+    )
+
+    admin.add_view(AnimalAdmin(Animal, icon="fa-solid fa-paw", name="Animal", label="Animals"))
+    admin.add_view(HealthLogAdmin(HealthLog, icon="fa-solid fa-notes-medical", name="Health Log", label="Health Logs"))
+
+    admin.add_view(InvoiceAdmin(Invoice, icon="fa-solid fa-file-invoice-dollar", name="Invoice", label="Invoices"))
+
+    admin.add_view(
+        ChatSessionAdmin(
+            ChatSession,
+            icon="fa-solid fa-comments",
+            name="Chat Session",
+            label="Chat Sessions"
+        )
+    )
+    admin.add_view(
+        ChatMessageAdmin(
+            ChatMessage,
+            icon="fa-solid fa-message",
+            name="Chat Message",
+            label="Chat Messages"
+        )
+    )
 
     admin.mount_to(app)

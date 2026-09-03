@@ -22,8 +22,8 @@ class AdminAuthProvider(AuthProvider):
             user = await session.scalar(select(User).where(User.email == username))
             if user is None or not user.is_active or not user.is_superuser or not verify_password(password, user.hashed_password):
                 raise FormValidationError({"password": "Invalid credentials"})
-
-        request.session.update({"admin_username": user.email, "admin_name": user.email})
+        if remember_me:
+            request.session.update({"admin_username": user.email, "admin_name": user.email})
         return response
 
     async def is_authenticated(self, request: Request) -> bool:
@@ -36,5 +36,6 @@ class AdminAuthProvider(AuthProvider):
         return AdminUser(username=request.session.get("admin_name", ""))
 
     async def logout(self, request: Request, response: Response) -> Response:
-        request.session.clear()
+        if request.session.get("admin_username"):
+            request.session.clear()
         return response

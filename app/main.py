@@ -29,7 +29,6 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title=get_app_config().APP_NAME,
     debug=get_app_config().DEBUG,
-    root_path="/api",
     lifespan=lifespan,
 )
 
@@ -54,4 +53,4 @@ async def app_error_handler(_: Request, error: CustomError) -> JSONResponse:
     return JSONResponse(status_code=error.status_code, content=content, headers=error.headers)
 
 
-app.include_router(v1_router)
+app.include_router(v1_router, prefix="/api")

@@ -10,17 +10,23 @@ class ResourceAdmin(ModelView):
     searchable_fields = ["name"]
     sortable_fields = ["id", "name", "created_at"]
     fields_default_sort = [("created_at", True)]
+    exporters = ["csv", "xlsx", "json"]
+    importers = ["csv", "xlsx"]
 
 
 class PermissionAdmin(ModelView):
     fields = ["id", "resource", "action", "created_at", "updated_at"]
     sortable_fields = ["id", "action", "created_at"]
+    exporters = ["csv", "xlsx", "json"]
+    importers = ["csv", "xlsx"]
 
 
 class RoleAdmin(ModelView):
     fields = ["id", "name", "description", "permissions", "created_at", "updated_at"]
     searchable_fields = ["name"]
     sortable_fields = ["id", "name", "created_at"]
+    exporters = ["csv", "xlsx", "json"]
+    importers = ["csv", "xlsx"]
 
 
 class AnimalAdmin(ModelView):
@@ -29,6 +35,8 @@ class AnimalAdmin(ModelView):
     searchable_fields = ["gender"]
     sortable_fields = ["gender", "birth_date", "created_at"]
     fields_default_sort = [("created_at", True)]
+    exporters = ["csv", "xlsx", "json"]
+    importers = ["csv", "xlsx"]
 
 
 class HealthLogAdmin(ModelView):
@@ -36,6 +44,8 @@ class HealthLogAdmin(ModelView):
     exclude_fields_from_list = ["invoices"]
     sortable_fields = ["created_at"]
     fields_default_sort = [("created_at", True)]
+    exporters = ["csv", "xlsx", "json"]
+    importers = ["csv", "xlsx"]
 
 
 class InvoiceAdmin(ModelView):
@@ -54,6 +64,7 @@ class InvoiceAdmin(ModelView):
     exclude_fields_from_list = ["health_logs"]
     sortable_fields = ["status", "currency", "amount_in_cents", "created_at"]
     fields_default_sort = [("created_at", True)]
+    exporters = ["csv", "xlsx", "json"]
 
 
 class ChatSessionAdmin(ModelView):
@@ -68,6 +79,13 @@ class ChatMessageAdmin(ModelView):
     fields = ["id", "session", "role", "content", "is_tool", "created_at", "updated_at"]
     exclude_fields_from_list = ["content"]
     sortable_fields = ["role", "created_at"]
+    fields_default_sort = [("created_at", True)]
+
+
+class OAuthAccountAdmin(ModelView):
+    fields = ["id", "user_id", "oauth_name", "account_id", "account_email", "created_at", "updated_at"]
+    searchable_fields = ["account_email", "oauth_name"]
+    sortable_fields = ["oauth_name", "account_email", "created_at"]
     fields_default_sort = [("created_at", True)]
 
 
@@ -86,6 +104,7 @@ class UserAdmin(ModelView):
         "created_at",
         "updated_at",
     ]
+    exporters = ["csv", "xlsx", "json"]
 
     exclude_fields_from_list = ["password", "hashed_password", "oauth_accounts", "animals"]
     exclude_fields_from_detail = ["password", "hashed_password"]

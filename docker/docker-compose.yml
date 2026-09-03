@@ -88,12 +88,27 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    env_file:
+      - ../.env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-strong_password_123}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
 
 volumes:
   postgres_data:
   pgadmin_data:
   redis_data:
   redisinsight_data:
+  minio_data:
 
 networks:
   animal_net:

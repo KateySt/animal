@@ -8,6 +8,7 @@ from app.services.auth_service import AuthService
 from app.services.chat_session_service import ChatSessionService
 from app.services.health_log_service import HealthLogService
 from app.services.invoice_service import InvoiceService
+from app.services.minio_service import MinioService, minio_service
 from app.services.permission_service import PermissionService
 from app.services.redis_service import RedisService, redis_service
 from app.services.refresh_token_service import RefreshTokenService

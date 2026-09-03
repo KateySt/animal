@@ -50,6 +50,9 @@ class ErrorCode(Enum):
     # User
     USER_NOT_FOUND = ("user_not_found", "User not found")
     USER_ALREADY_EXISTS = ("user_already_exists", "A user with this email already exists")
+    AVATAR_INVALID_TYPE = ("avatar_invalid_type", "Avatar must be an image (jpeg, png or webp)")
+    AVATAR_TOO_LARGE = ("avatar_too_large", "Avatar file is too large")
+    AVATAR_NOT_FOUND = ("avatar_not_found", "User has no avatar")
 
     # Role
     ROLE_NOT_FOUND = ("role_not_found", "Role not found")

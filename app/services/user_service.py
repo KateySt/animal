@@ -1,22 +1,32 @@
-from uuid import UUID
+import mimetypes
+from uuid import UUID, uuid4
 
 from sqlalchemy import ScalarResult, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.error_codes import ErrorCode
-from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
+from app.core.exceptions import AlreadyExistsError, BadRequestError, NotFoundError, UnauthorizedError
 from app.core.security import generate_refresh_token, hash_password
 from app.db.models import OAuthAccount, animal_crud, oauth_account_crud, user_crud
 from app.db.models.associations import role_permissions, user_roles
 from app.db.models.permission import Permission
 from app.db.models.resource import Resource
 from app.db.models.user import User
-from app.schemas.user import OAuthAccountCreate, UserCreate, UserInternal
+from app.schemas.user import OAuthAccountCreate, UserCreate, UserInternal, UserRead
+from app.services.minio_service import minio_service
+
+ALLOWED_AVATAR_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
 
 
 class UserService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def list_users(self) -> list[UserRead]:
+        result = await self._session.execute(select(User).options(selectinload(User.roles)))
+        return [UserRead.model_validate(user) for user in result.scalars().all()]
 
     async def get_by_id(self, user_id: UUID) -> UserInternal:
         user = await user_crud.get(self._session, schema_to_select=UserInternal, return_as_model=True, id=user_id)
@@ -96,3 +106,32 @@ class UserService:
             schema_to_select=UserInternal,
             return_as_model=True,
         )
+
+    async def upload_avatar(self, user: User, content_type: str, data: bytes) -> UserRead:
+        if content_type not in ALLOWED_AVATAR_CONTENT_TYPES:
+            raise BadRequestError(ErrorCode.AVATAR_INVALID_TYPE)
+        if len(data) > MAX_AVATAR_SIZE_BYTES:
+            raise BadRequestError(ErrorCode.AVATAR_TOO_LARGE)
+
+        extension = mimetypes.guess_extension(content_type) or ""
+        object_name = f"avatars/{user.id}/{uuid4().hex}{extension}"
+
+        previous_key = user.avatar_key
+        await minio_service.upload_file(object_name, data, content_type)
+        if previous_key and previous_key != object_name:
+            await minio_service.delete_file(previous_key)
+
+        user.avatar_key = object_name
+        await self._session.commit()
+        await self._session.refresh(user)
+        return UserRead.model_validate(user)
+
+    async def delete_avatar(self, user: User) -> UserRead:
+        if user.avatar_key is None:
+            raise NotFoundError(ErrorCode.AVATAR_NOT_FOUND)
+
+        await minio_service.delete_file(user.avatar_key)
+        user.avatar_key = None
+        await self._session.commit()
+        await self._session.refresh(user)
+        return UserRead.model_validate(user)

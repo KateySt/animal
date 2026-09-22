@@ -1,56 +1,47 @@
-import anthropic
-import httpx2
-from anthropic.types import Message, MessageParam
+import os
+
+import ai
+
 from app.core.config import get_anthropic_config
-from app.core.prompts import SYSTEM_PROMPT
 from app.core.prompts.system_prompt import ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE, SUMMARY_PROMPT, TITLE_PROMPT
-from app.core.tools.definitions import TOOL_DEFINITIONS
-from app.db import MessageRole
-
-client = anthropic.AsyncAnthropic(
-    api_key=get_anthropic_config().ANTHROPIC_API_KEY,
-    max_retries=3,
-    timeout=60.0,
-)
 
 
-def _first_text(response: Message) -> str:
-    return next((block.text for block in response.content if block.type == "text"), "").strip()
+def get_model() -> ai.Model:
+    os.environ.setdefault("ANTHROPIC_API_KEY", get_anthropic_config().ANTHROPIC_API_KEY)
+    return ai.get_model(f"anthropic:{get_anthropic_config().ANTHROPIC_MODEL}")
+
+
+def inference_params(max_tokens: int) -> ai.InferenceRequestParams:
+    config = get_anthropic_config()
+    return ai.InferenceRequestParams(
+        sampling={
+            ai.TemperatureSamplerParams: ai.TemperatureSamplerParams(temperature=config.ANTHROPIC_TEMPERATURE),
+            ai.TopKSamplerParams: ai.TopKSamplerParams(top_k=config.ANTHROPIC_TOP_K),
+        },
+        output=ai.OutputParams(max_tokens=max_tokens),
+        cache=ai.CacheParams(),
+    )
 
 
 async def generate_title(first_message: str) -> str:
-    response = await client.messages.create(
-        model=get_anthropic_config().ANTHROPIC_MODEL,
-        max_tokens=get_anthropic_config().ANTHROPIC_TITLE_MAX_TOKEN,
-        system=TITLE_PROMPT,
-        messages=[{"role": MessageRole.user, "content": first_message}],
+    message = await ai.experimental_generate(
+        get_model(),
+        [ai.system_message(TITLE_PROMPT), ai.user_message(first_message)],
+        params=inference_params(get_anthropic_config().ANTHROPIC_TITLE_MAX_TOKEN),
     )
-    return _first_text(response)[:255]
+    return message.text.strip()[:255]
 
 
 async def generate_summary(previous_summary: str | None, new_transcript: str) -> str:
     if previous_summary:
-        content = ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE.format(previous_summary=previous_summary,
-                                                             new_transcript=new_transcript)
+        content = ASSISTANT_PREVIOUS_SUMMARY_TEMPLATE.format(
+            previous_summary=previous_summary, new_transcript=new_transcript
+        )
     else:
         content = new_transcript
-    response = await client.messages.create(
-        model=get_anthropic_config().ANTHROPIC_MODEL,
-        max_tokens=get_anthropic_config().ANTHROPIC_SUMMERY_MAX_TOKEN,
-        system=SUMMARY_PROMPT,
-        messages=[{"role": MessageRole.user, "content": content}],
+    message = await ai.experimental_generate(
+        get_model(),
+        [ai.system_message(SUMMARY_PROMPT), ai.user_message(content)],
+        params=inference_params(get_anthropic_config().ANTHROPIC_SUMMERY_MAX_TOKEN),
     )
-    return _first_text(response)
-
-
-def stream(messages: list[MessageParam]):
-    return client.messages.stream(
-        model=get_anthropic_config().ANTHROPIC_MODEL,
-        max_tokens=get_anthropic_config().ANTHROPIC_MAX_TOKEN,
-        temperature=get_anthropic_config().ANTHROPIC_TEMPERATURE,
-        top_k=get_anthropic_config().ANTHROPIC_TOP_K,
-        cache_control={"type": "ephemeral"},
-        system=SYSTEM_PROMPT,
-        messages=messages,
-        tools=TOOL_DEFINITIONS,
-    )
+    return message.text.strip()

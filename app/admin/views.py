@@ -76,7 +76,7 @@ class ChatSessionAdmin(ModelView):
 
 
 class ChatMessageAdmin(ModelView):
-    fields = ["id", "session", "role", "content", "is_tool", "created_at", "updated_at"]
+    fields = ["id", "session", "role", "content", "created_at", "updated_at"]
     exclude_fields_from_list = ["content"]
     sortable_fields = ["role", "created_at"]
     fields_default_sort = [("created_at", True)]

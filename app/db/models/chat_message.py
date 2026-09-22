@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey
+from sqlalchemy import JSON, ForeignKey
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,6 +20,5 @@ class ChatMessage(Base, IDMixin, TimestampMixin):
     session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chatsessions.id", ondelete="CASCADE"), nullable=False, index=True)
     role: Mapped[MessageRole] = mapped_column(SAEnum(MessageRole, name="messagerole"), nullable=False)
     content: Mapped[Any] = mapped_column(JSON, nullable=False)
-    is_tool: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     session: Mapped[ChatSession] = relationship("ChatSession", back_populates="messages", lazy="noload")

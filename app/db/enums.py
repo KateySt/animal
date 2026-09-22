@@ -33,3 +33,4 @@ class Locale(StrEnum):
 class MessageRole(StrEnum):
     user = "user"
     assistant = "assistant"
+    tool = "tool"

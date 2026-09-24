@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from anthropic.types import MessageParam
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,7 +9,6 @@ from sqlalchemy.orm import selectinload
 from app.core import ValidationError, get_anthropic_config
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
-from app.core.prompts.system_prompt import ASSISTANT_SUMMARY_TEMPLATE, SUMMARY_TEMPLATE
 from app.db import MessageRole
 from app.db.models import ChatMessage, ChatSession
 from app.db.models.user import User
@@ -46,28 +44,36 @@ class ChatSessionService:
             raise NotFoundError(ErrorCode.CHAT_SESSION_NOT_FOUND)
         return chat_session
 
-    async def get_messages_for_anthropic(self, session_id: UUID, summary: str | None = None) -> list[MessageParam]:
+    async def get_messages_for_anthropic(self, session_id: UUID) -> list[tuple[MessageRole, Any]]:
         rows = await self._session.execute(
-            select(ChatMessage.role, ChatMessage.content)
+            select(ChatMessage.role, ChatMessage.content, ChatMessage.created_at)
             .where(ChatMessage.session_id == session_id)
             .order_by(ChatMessage.created_at.desc())
             .limit(get_anthropic_config().RECENT_WINDOW)
         )
-        recent = list(reversed([MessageParam(role=role, content=content) for role, content in rows]))
-        if summary:
-            prefix = [
-                MessageParam(role=MessageRole.user, content=SUMMARY_TEMPLATE.format(summary=summary)),
-                MessageParam(role=MessageRole.assistant, content=ASSISTANT_SUMMARY_TEMPLATE),
-            ]
-            return prefix + recent
-        return recent
+        messages = list(reversed(rows.all()))
+
+        while messages and messages[0].role == MessageRole.tool:
+            prev = await self._session.execute(
+                select(ChatMessage.role, ChatMessage.content, ChatMessage.created_at)
+                .where(ChatMessage.session_id == session_id)
+                .where(ChatMessage.created_at < messages[0].created_at)
+                .order_by(ChatMessage.created_at.desc())
+                .limit(1)
+            )
+            prev_row = prev.first()
+            if prev_row is None:
+                messages.pop(0)
+                break
+            messages.insert(0, prev_row)
+
+        return [(role, content) for role, content, _ in messages]
 
     async def count_user_messages(self, session_id: UUID) -> int:
         result = await self._session.execute(
             select(func.count())
             .where(ChatMessage.session_id == session_id)
             .where(ChatMessage.role == MessageRole.user)
-            .where(ChatMessage.is_tool == False)
         )
         return result.scalar_one()
 
@@ -76,7 +82,7 @@ class ChatSessionService:
         query = (
             select(ChatMessage.role, ChatMessage.content)
             .where(ChatMessage.session_id == session_id)
-            .where(ChatMessage.is_tool == False)
+            .where(ChatMessage.role != MessageRole.tool)
             .order_by(ChatMessage.created_at.asc())
         )
         if last_summarized_message_id is not None:
@@ -90,7 +96,7 @@ class ChatSessionService:
         result = await self._session.execute(
             select(ChatMessage.id)
             .where(ChatMessage.session_id == session_id)
-            .where(ChatMessage.is_tool == False)
+            .where(ChatMessage.role != MessageRole.tool)
             .order_by(ChatMessage.created_at.desc())
             .limit(1)
         )
@@ -113,8 +119,8 @@ class ChatSessionService:
         await self._session.delete(chat_session)
         await self._session.commit()
 
-    async def create_message(self, session_id: UUID, role: MessageRole, content: Any, is_tool: bool = False) -> None:
-        message = ChatMessage(session_id=session_id, role=role, content=content, is_tool=is_tool)
+    async def create_message(self, session_id: UUID, role: MessageRole, content: Any) -> None:
+        message = ChatMessage(session_id=session_id, role=role, content=content)
         self._session.add(message)
         await self._session.commit()
 

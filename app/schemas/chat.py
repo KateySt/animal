@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db import Gender, MessageRole
+from app.db import Gender
 from app.schemas.animal import AnimalTranslationRead, HealthLogTranslationRead
 
 
@@ -14,15 +14,6 @@ class ChatSessionUpdate(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str = Field(..., description="The content of the message", min_length=1, max_length=500)
-
-
-class ChatMessage(BaseModel):
-    id: uuid.UUID
-    role: MessageRole
-    content: Any
-    is_tool: bool
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
 
 
 class ChatSessionRead(BaseModel):
@@ -44,7 +35,7 @@ class ChatSessionReadWithMessages(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
-    messages: list[ChatMessage]
+    ui_messages: list[dict[str, Any]]
 
 
 class ChatSessionListRead(BaseModel):

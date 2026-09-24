@@ -6,7 +6,7 @@ name = "animal"
 name = "Animal"
 version = "0.1.0"
 description = "Animal"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
     { name = "KateySt", email = "kateystetsenko@gmail.com" }
 ]
@@ -17,7 +17,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 150
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
@@ -30,7 +30,7 @@ ignore = ["E501"]
 known-first-party = ["app"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 ignore_missing_imports = true
 exclude = "^alembic/"
 
@@ -50,7 +50,7 @@ pydantic = "^2.13.4"
 pydantic-settings = "^2.14.2"
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.51"}
 alembic = "^1.18.5"
-python = "^3.11"
+python = "^3.12"
 structlog = "^26.1.0"
 colorama = "^0.4.6"
 fastcrud = "^0.22.3"
@@ -69,6 +69,7 @@ anthropic = "^0.120.2"
 httpx2 = "^2.12.0"
 minio = "^7.2.20"
 pillow = "^12.3.0"
+ai = "^0.7.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.15"

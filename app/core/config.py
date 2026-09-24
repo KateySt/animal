@@ -118,6 +118,21 @@ class TestConfig(BaseSettings):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
+class SpeechConfig(BaseSettings):
+    DEEPGRAM_API_KEY: str
+    DEEPGRAM_MODEL: str = "nova-2"
+    ELEVENLABS_API_KEY: str
+    ELEVENLABS_VOICE_ID: str
+    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+@lru_cache
+def get_speech_config() -> SpeechConfig:
+    return SpeechConfig()
+
+
 @lru_cache
 def get_minio_config() -> MinioConfig:
     return MinioConfig()

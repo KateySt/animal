@@ -74,3 +74,8 @@ class ErrorCode(Enum):
     CHAT_SESSION_NOT_FOUND = ("chat_session_not_found", "Chat session not found")
     CHAT_STREAMING_ERROR = ("chat_streaming_error", "Failed to stream chat response")
     CHAT_OWNER_NOT_MATCH = ("chat_owner_not_match", "Not your chat session")
+    TRANSCRIBE_INVALID_TYPE = ("transcribe_invalid_type", "Audio must be webm, mp4, wav or ogg")
+    TRANSCRIBE_TOO_LARGE = ("transcribe_too_large", "Audio file is too large")
+    TRANSCRIBE_EMPTY = ("transcribe_empty", "No speech detected")
+    STT_PROVIDER_ERROR = ("stt_provider_error", "Speech-to-text provider failed")
+    TTS_PROVIDER_ERROR = ("tts_provider_error", "Text-to-speech provider failed")

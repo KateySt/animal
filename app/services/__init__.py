@@ -15,6 +15,7 @@ from app.services.refresh_token_service import RefreshTokenService
 from app.services.resource_service import ResourceService
 from app.services.role_service import RoleService
 from app.services.user_service import UserService
+from app.services.speech_service import SpeechService
 
 
 def get_health_log_service(session: AsyncSession = Depends(get_db_session)) -> HealthLogService:
@@ -70,3 +71,6 @@ def get_anthropic_chat_service(
     session_service: ChatSessionService = Depends(get_chat_session_service),
 ) -> AnthropicChatService:
     return AnthropicChatService(session, session_service)
+
+def get_speech_service() -> SpeechService:
+    return SpeechService()

@@ -2,10 +2,9 @@ import datetime
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.db import Gender
 from app.schemas.animal import AnimalTranslationRead, HealthLogTranslationRead
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatSessionUpdate(BaseModel):
@@ -14,6 +13,14 @@ class ChatSessionUpdate(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str = Field(..., description="The content of the message", min_length=1, max_length=500)
+
+
+class GenerateImageRequest(BaseModel):
+    description: str = Field(..., description="Description of the image to generate", min_length=1, max_length=500)
+
+
+class GenerateImageResponse(BaseModel):
+    messages: list[dict[str, Any]]
 
 
 class ChatSessionRead(BaseModel):

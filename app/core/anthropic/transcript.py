@@ -25,6 +25,12 @@ def _block_to_part(block: dict[str, Any]) -> Any:
         return ai.types.messages.ToolCallPart(
             tool_call_id=block["id"], tool_name=block["name"], tool_args=json.dumps(block["input"])
         )
+    if block["type"] == "file":
+        return ai.types.messages.FilePart(
+            data=block["url"],
+            media_type=block["media_type"],
+            filename=block.get("filename")
+        )
     raise ValueError(f"Unsupported stored content block type: {block['type']!r}")
 
 
@@ -66,6 +72,13 @@ def from_ai_message(message: Any) -> Any:
             blocks.append(
                 {"type": "tool_use", "id": part.tool_call_id, "name": part.tool_name, "input": json.loads(part.tool_args)}
             )
+        elif isinstance(part, ai.types.messages.FilePart):
+            blocks.append({
+                "type": "file",
+                "media_type": part.media_type,
+                "url": part.data if isinstance(part.data, str) else None,
+                "filename": part.filename,
+            })
         else:
             raise ValueError(f"Unsupported ai message part kind: {part.kind!r}")
     return blocks

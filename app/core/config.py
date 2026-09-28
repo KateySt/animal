@@ -128,6 +128,17 @@ class SpeechConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class ImageConfig(BaseSettings):
+    OPENAI_API_KEY: str
+    OPENAI_IMAGE_MODEL: str
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+@lru_cache
+def get_image_config() -> ImageConfig:
+    return ImageConfig()
+
+
 @lru_cache
 def get_speech_config() -> SpeechConfig:
     return SpeechConfig()

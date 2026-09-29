@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.core.dependencies import require_superuser
-from app.schemas.role import RoleCreate, RoleDetailRead, RolePermissionAssign, RoleRead, RoleUpdate
+from app.schemas.role import RoleCreate, RoleDetailRead, RolePermissionAssign, RoleUpdate
 from app.services import get_role_service
 from app.services.role_service import RoleService
 

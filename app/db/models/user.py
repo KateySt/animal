@@ -10,11 +10,11 @@ from app.db.models.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.animal import Animal
+    from app.db.models.chat_session import ChatSession
     from app.db.models.invoice import Invoice
     from app.db.models.oauth_account import OAuthAccount
     from app.db.models.refresh_token import RefreshToken
     from app.db.models.role import Role
-    from app.db.models.chat_session import ChatSession
 
 
 class User(Base, IDMixin, TimestampMixin):

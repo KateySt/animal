@@ -1,5 +1,7 @@
 from uuid import UUID, uuid4
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.anthropic import to_ui_history
 from app.core.openai.client import get_image_from_text
 from app.db import MessageRole
@@ -7,7 +9,6 @@ from app.db.models.user import User
 from app.schemas.chat import GenerateImageResponse
 from app.services.chat_session_service import ChatSessionService
 from app.services.minio_service import minio_service
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ImageService:

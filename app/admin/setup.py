@@ -1,3 +1,6 @@
+from fastapi import FastAPI
+from starlette_admin.contrib.sqla import Admin
+
 from app.admin.auth import AdminAuthProvider
 from app.admin.views import (
     AnimalAdmin,
@@ -19,8 +22,6 @@ from app.db.models.health_log import HealthLog
 from app.db.models.invoice import Invoice
 from app.db.models.oauth_account import OAuthAccount
 from app.db.session import engine
-from fastapi import FastAPI
-from starlette_admin.contrib.sqla import Admin
 
 
 def setup_admin(app: FastAPI) -> None:

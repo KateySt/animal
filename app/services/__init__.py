@@ -1,6 +1,8 @@
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db import get_db_session
 from app.services.animal_service import AnimalService
-from app.services.anthropic_chat_service import AnthropicChatService
 from app.services.auth_service import AuthService
 from app.services.chat_session_service import ChatSessionService
 from app.services.health_log_service import HealthLogService
@@ -12,10 +14,8 @@ from app.services.redis_service import RedisService, redis_service
 from app.services.refresh_token_service import RefreshTokenService
 from app.services.resource_service import ResourceService
 from app.services.role_service import RoleService
-from app.services.speech_service import SpeechService
 from app.services.user_service import UserService
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.live_kit_service import create_live_kit_token
 
 
 def get_health_log_service(session: AsyncSession = Depends(get_db_session)) -> HealthLogService:
@@ -64,16 +64,6 @@ def get_auth_service(
 
 def get_chat_session_service(session: AsyncSession = Depends(get_db_session)) -> ChatSessionService:
     return ChatSessionService(session)
-
-
-def get_anthropic_chat_service(
-    session: AsyncSession = Depends(get_db_session),
-    session_service: ChatSessionService = Depends(get_chat_session_service),
-) -> AnthropicChatService:
-    return AnthropicChatService(session, session_service)
-
-def get_speech_service() -> SpeechService:
-    return SpeechService()
 
 
 def get_image_service(

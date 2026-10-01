@@ -34,3 +34,10 @@ class MessageRole(StrEnum):
     user = "user"
     assistant = "assistant"
     tool = "tool"
+
+
+class DocumentStatus(StrEnum):
+    uploading = "uploading"
+    embedding = "embedding"
+    ready = "ready"
+    failed = "failed"

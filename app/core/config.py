@@ -62,6 +62,11 @@ class RedisConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    @computed_field
+    @property
+    def redis_url(self) -> str:
+        return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+
 
 class StripeConfig(BaseSettings):
     STRIPE_SECRET_KEY: str
@@ -147,6 +152,16 @@ class ExaConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class BookRagConfig(BaseSettings):
+    BOOK_RAG_BASE_URL: str
+    INTERNAL_SERVICE_TOKEN: str
+    BOOK_RAG_MAX_UPLOAD_SIZE_BYTES: int = 15 * 1024 * 1024
+    BOOK_RAG_MAX_DOCUMENTS_PER_SESSION: int = 5
+    BOOK_RAG_REQUEST_TIMEOUT_SECONDS: float = 30.0
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
 @lru_cache
 def get_exa_config() -> ExaConfig:
     return ExaConfig()
@@ -205,3 +220,8 @@ def get_redis_config() -> RedisConfig:
 @lru_cache
 def get_stripe_config() -> StripeConfig:
     return StripeConfig()
+
+
+@lru_cache
+def get_book_rag_config() -> BookRagConfig:
+    return BookRagConfig()

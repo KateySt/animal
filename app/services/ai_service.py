@@ -1,10 +1,12 @@
 import json
 from datetime import UTC, date, datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.core.book_rag import search_documents
 from app.core.exa import get_exa_client
 from app.db import InvoiceStatus
 from app.db.models import Animal, HealthLog
@@ -64,7 +66,17 @@ async def web_search_tool(query: str, num_results: int = 5) -> str:
     response = await client.search_and_contents(query, num_results=num_results, text=True)
 
     items = [
-        {"title": result.title, "url": result.url, "published_date": result.published_date, "text": result.text}
+        {
+            "title": result.title,
+            "url": result.url,
+            "published_date": result.published_date,
+            "text": result.text
+        }
         for result in response.results
     ]
     return json.dumps({"results": items})
+
+
+async def search_chat_documents_tool(chat_session_id: UUID, query: str, top_k: int = 5) -> str:
+    results = await search_documents(chat_session_id, query, top_k=top_k)
+    return json.dumps({"chunks": results})

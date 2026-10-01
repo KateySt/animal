@@ -1,12 +1,13 @@
 from datetime import date
+from uuid import UUID
 
 from livekit.agents import FunctionTool, function_tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.prompts import GET_INVOICES_TOOL_DESCRIPTION, WEB_SEARCH_TOOL_DESCRIPTION
+from app.core.prompts import GET_INVOICES_TOOL_DESCRIPTION, SEARCH_DOCUMENTS_TOOL_DESCRIPTION, WEB_SEARCH_TOOL_DESCRIPTION
 from app.db import InvoiceStatus
 from app.db.models.user import User
-from app.services.ai_service import get_invoices_tool, web_search_tool
+from app.services.ai_service import get_invoices_tool, search_chat_documents_tool, web_search_tool
 
 
 def build_invoices_function_tool(session: AsyncSession, user: User) -> FunctionTool:
@@ -27,3 +28,11 @@ def build_web_search_function_tool() -> FunctionTool:
         return await web_search_tool(query, num_results)
 
     return web_search
+
+
+def build_search_documents_function_tool(chat_session_id: UUID) -> FunctionTool:
+    @function_tool(description=SEARCH_DOCUMENTS_TOOL_DESCRIPTION)
+    async def search_documents(query: str, top_k: int = 5) -> str:
+        return await search_chat_documents_tool(chat_session_id, query, top_k)
+
+    return search_documents

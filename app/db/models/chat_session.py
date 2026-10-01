@@ -11,6 +11,7 @@ from app.db.mixins import IDMixin, TimestampMixin
 from app.db.models.base import Base
 
 if TYPE_CHECKING:
+    from app.db.models.chat_document import ChatDocument
     from app.db.models.chat_message import ChatMessage
     from app.db.models.user import User
 
@@ -27,5 +28,12 @@ class ChatSession(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
         lazy="noload",
         order_by="ChatMessage.created_at",
+    )
+    documents: Mapped[list[ChatDocument]] = relationship(
+        "ChatDocument",
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by="ChatDocument.created_at",
     )
     user: Mapped[User] = relationship("User", back_populates="chat_sessions", lazy="noload")

@@ -76,6 +76,8 @@ livekit-plugins-anthropic = "^1.8.3"
 livekit-plugins-elevenlabs = "^1.8.3"
 livekit-plugins-silero = "^1.8.3"
 exa-py = "^2.23.0"
+tenacity = "^9.1.4"
+python-socketio = "^5.17.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.15"

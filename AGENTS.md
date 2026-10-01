@@ -23,6 +23,7 @@ app/
   routers/v1/ animal · anthropic_chat · auth · health_log · image · permission · resource
               role · stripe · users
   livekit_worker/  entrypoint.py · dependencies.py · db.py · tools.py · persistence/  (separate LiveKit agent worker process)
+  ws/         server.py (AsyncServer + AsyncRedisManager) · auth.py (get_current_principal) · events.py (@sio.event handlers) · rooms.py
   main.py     # lifespan, CORS, SessionMiddleware, CustomError handler, stripe.api_key
   admin/      setup.py · views.py · auth.py
 alembic/
@@ -63,6 +64,11 @@ Webhook route (`POST /webhook`) is **public** — signature verified inside `han
 
 ## Images
 `image_router.py` → `image_service.py` → `minio_service.py` (S3-compatible object storage via `app/core/minio.py`). Used for animal/user avatar uploads.
+
+## WebSocket
+Single Socket.IO server (`app/ws/server.py`, `socketio.AsyncServer(async_mode="asgi", client_manager=AsyncRedisManager(...))`) mounted onto the FastAPI app in `app/main.py` as `asgi_app = socketio.ASGIApp(sio, other_asgi_app=app, socketio_path="ws")` — **uvicorn must point at `app.main:asgi_app`, not `app.main:app`** (tests still import the bare `app` directly, unaffected).
+Auth happens on the Socket.IO handshake: client sends `auth: { token }`; `connect` in `app/ws/events.py` validates it via `get_current_principal` (`app/ws/auth.py`, same JWT + permissions-version check as `get_current_principal`, just without header coupling) and rejects with `ConnectionRefusedError` on failure.
+Per-feature realtime channels are rooms, not separate routes: clients `emit("join_chat_session", { sessionId })` after connecting (ownership checked against the handshake session before `sio.enter_room`), and services push updates with `sio.emit(event, payload, room=chat_session_room(id))` (`app/ws/rooms.py`). `AsyncRedisManager` handles fan-out across worker processes — don't hand-roll Redis pub/sub for this, emit through `sio` instead (see `DocumentService._publish_status`).
 
 ## Architecture
 Layer order: **Models ← FastCRUD ← Services ← Routers**. Schemas (`app/schemas/`) never import ORM models.

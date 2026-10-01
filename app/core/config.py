@@ -141,6 +141,17 @@ class LiveKitConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class ExaConfig(BaseSettings):
+    EXA_API_KEY: str
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+@lru_cache
+def get_exa_config() -> ExaConfig:
+    return ExaConfig()
+
+
 @lru_cache
 def get_image_config() -> ImageConfig:
     return ImageConfig()

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.core.exa import get_exa_client
 from app.db import InvoiceStatus
 from app.db.models import Animal, HealthLog
 from app.db.models.invoice import Invoice
@@ -55,3 +56,15 @@ async def get_invoices_tool(
     ]
 
     return json.dumps({"invoices": items, "total": round(sum(i["amount"] for i in items), 2)})
+
+
+async def web_search_tool(query: str, num_results: int = 5) -> str:
+    client = get_exa_client()
+
+    response = await client.search_and_contents(query, num_results=num_results, text=True)
+
+    items = [
+        {"title": result.title, "url": result.url, "published_date": result.published_date, "text": result.text}
+        for result in response.results
+    ]
+    return json.dumps({"results": items})

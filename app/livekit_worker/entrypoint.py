@@ -38,7 +38,7 @@ from app.livekit_worker.persistence import (
     _function_tools_executed_to_rows,
     hydrate_chat_context,
 )
-from app.livekit_worker.tools import build_invoices_function_tool
+from app.livekit_worker.tools import build_invoices_function_tool, build_web_search_function_tool
 
 
 async def entrypoint(ctx: JobContext):
@@ -68,7 +68,7 @@ async def entrypoint(ctx: JobContext):
         agent = Agent(
             instructions=SYSTEM_PROMPT,
             chat_ctx=chat_ctx,
-            tools=[build_invoices_function_tool(db_session, user)],
+            tools=[build_invoices_function_tool(db_session, user), build_web_search_function_tool()],
         )
 
         anthropic_config = get_anthropic_config()

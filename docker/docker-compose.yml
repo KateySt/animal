@@ -103,6 +103,22 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: animal_livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "52000-52050:52000-52050/udp"
+    networks:
+      - animal_net
+
   animal_fast_api:
     container_name: animal
     build:

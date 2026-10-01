@@ -175,3 +175,9 @@ make upgrade                                             # migrate DB
 make dev                                                 # code with reload
 make check && make test                                  # before committing
 ```
+
+## LiveKit run
+
+```bash
+poetry run python -m app.livekit_worker.entrypoint dev                                  # before committing
+```

@@ -82,6 +82,24 @@ class ChatMessageAdmin(ModelView):
     fields_default_sort = [("created_at", True)]
 
 
+class ChatDocumentAdmin(ModelView):
+    fields = [
+        "id",
+        "chat_session",
+        "filename",
+        "content_type",
+        "size_bytes",
+        "minio_object_name",
+        "status",
+        "created_at",
+        "updated_at",
+    ]
+    exclude_fields_from_list = ["minio_object_name"]
+    searchable_fields = ["filename"]
+    sortable_fields = ["filename", "status", "size_bytes", "created_at"]
+    fields_default_sort = [("created_at", True)]
+
+
 class OAuthAccountAdmin(ModelView):
     fields = ["id", "user_id", "oauth_name", "account_id", "account_email", "created_at", "updated_at"]
     searchable_fields = ["account_email", "oauth_name"]

@@ -1,6 +1,10 @@
+from fastapi import FastAPI
+from starlette_admin.contrib.sqla import Admin
+
 from app.admin.auth import AdminAuthProvider
 from app.admin.views import (
     AnimalAdmin,
+    ChatDocumentAdmin,
     ChatMessageAdmin,
     ChatSessionAdmin,
     HealthLogAdmin,
@@ -13,14 +17,13 @@ from app.admin.views import (
 )
 from app.db.models import Permission, Resource, Role, User
 from app.db.models.animal import Animal
+from app.db.models.chat_document import ChatDocument
 from app.db.models.chat_message import ChatMessage
 from app.db.models.chat_session import ChatSession
 from app.db.models.health_log import HealthLog
 from app.db.models.invoice import Invoice
 from app.db.models.oauth_account import OAuthAccount
 from app.db.session import engine
-from fastapi import FastAPI
-from starlette_admin.contrib.sqla import Admin
 
 
 def setup_admin(app: FastAPI) -> None:
@@ -71,6 +74,14 @@ def setup_admin(app: FastAPI) -> None:
             icon="fa-solid fa-message",
             name="Chat Message",
             label="Chat Messages"
+        )
+    )
+    admin.add_view(
+        ChatDocumentAdmin(
+            ChatDocument,
+            icon="fa-solid fa-file-pdf",
+            name="Chat Document",
+            label="Chat Documents"
         )
     )
 

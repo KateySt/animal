@@ -29,5 +29,8 @@ class RedisService:
     async def delete_cache(self, key: str) -> None:
         await self.redis.delete(key)
 
+    async def publish(self, channel: str, message: str) -> None:
+        await self.redis.publish(channel, message)
+
 
 redis_service = RedisService()

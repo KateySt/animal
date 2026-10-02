@@ -1,11 +1,12 @@
 from uuid import UUID
 
+from fastapi import APIRouter, Depends
+
 from app.core.dependencies import get_current_user
 from app.db.models.user import User
 from app.schemas.chat import GenerateImageRequest, GenerateImageResponse
 from app.services import get_image_service
 from app.services.image_service import ImageService
-from fastapi import APIRouter, Depends, status
 
 router = APIRouter()
 

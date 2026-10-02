@@ -6,8 +6,7 @@ from starlette import status
 from app.core.dependencies import get_current_user, require_roles
 from app.db.models import User
 from app.schemas import Principal
-from app.schemas.stripe import ConfirmPaymentRequest, ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, \
-    InvoiceWithLogsRead
+from app.schemas.stripe import ConfirmPaymentRequest, ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, InvoiceWithLogsRead
 from app.services import InvoiceService, get_invoice_service
 
 router = APIRouter()

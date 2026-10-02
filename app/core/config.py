@@ -74,8 +74,6 @@ class AnthropicConfig(BaseSettings):
     ANTHROPIC_API_KEY: str
     ANTHROPIC_MODEL: str
     ANTHROPIC_MAX_TOKEN: int
-    ANTHROPIC_TEMPERATURE: float = 1.0
-    ANTHROPIC_TOP_K: int = 40
 
     ANTHROPIC_TITLE_MAX_TOKEN: int
     ANTHROPIC_SUMMERY_MAX_TOKEN: int
@@ -134,9 +132,23 @@ class ImageConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class LiveKitConfig(BaseSettings):
+    LIVEKIT_URL: str
+    LIVEKIT_API_KEY: str
+    LIVEKIT_API_SECRET: str
+    LIVEKIT_AGENT_NAME: str = "animal-chat-agent"
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
 @lru_cache
 def get_image_config() -> ImageConfig:
     return ImageConfig()
+
+
+@lru_cache
+def get_livekit_config() -> LiveKitConfig:
+    return LiveKitConfig()
 
 
 @lru_cache

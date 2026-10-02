@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import ValidationError, get_anthropic_config
+from app.core.anthropic import generate_summary, generate_title, serialize_transcript
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
 from app.db import MessageRole
@@ -39,6 +40,15 @@ class ChatSessionService:
 
     async def get_session(self, session_id: UUID) -> ChatSession:
         result = await self._session.execute(select(ChatSession).where(ChatSession.id == session_id))
+        chat_session = result.scalar_one_or_none()
+        if chat_session is None:
+            raise NotFoundError(ErrorCode.CHAT_SESSION_NOT_FOUND)
+        return chat_session
+
+    async def get_session_with_user(self, session_id: UUID) -> ChatSession:
+        result = await self._session.execute(
+            select(ChatSession).where(ChatSession.id == session_id).options(selectinload(ChatSession.user))
+        )
         chat_session = result.scalar_one_or_none()
         if chat_session is None:
             raise NotFoundError(ErrorCode.CHAT_SESSION_NOT_FOUND)
@@ -127,3 +137,16 @@ class ChatSessionService:
     async def count_messages(self, session_id: UUID) -> int:
         result = await self._session.execute(select(func.count()).where(ChatMessage.session_id == session_id))
         return result.scalar_one()
+
+    async def run_post_message_hooks(self, chat_session: ChatSession, user_content: str) -> None:
+        if chat_session.title is None:
+            chat_session.title = await generate_title(user_content)
+            await self._session.commit()
+
+        user_count = await self.count_user_messages(chat_session.id)
+        if user_count % get_anthropic_config().SUMMARY_EVERY_N == 0:
+            new_rows = await self.get_messages_since_summary(chat_session.id, chat_session.last_summarized_message_id)
+            if new_rows:
+                summary = await generate_summary(chat_session.summary, serialize_transcript(new_rows))
+                last_id = await self.get_last_message_id(chat_session.id)
+                await self.set_summary(chat_session, summary, last_id)

@@ -1,6 +1,6 @@
-from app.core.config import get_minio_config
-
 from minio import Minio
+
+from app.core.config import get_minio_config
 
 minio_config = get_minio_config()
 

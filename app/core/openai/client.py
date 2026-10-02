@@ -1,6 +1,7 @@
 import base64
 
 import httpx
+
 from app.core.config import get_image_config
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import BadRequestError

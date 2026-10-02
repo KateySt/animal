@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
+
 from app.core.config import get_minio_config
 from app.schemas.role import RoleRead
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 
 class UserInternal(BaseModel):

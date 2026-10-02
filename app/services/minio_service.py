@@ -1,12 +1,13 @@
 import json
 from io import BytesIO
 
+from minio.error import S3Error
+from starlette.concurrency import run_in_threadpool
+
 from app.core.config import get_minio_config
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
 from app.core.minio import client
-from minio.error import S3Error
-from starlette.concurrency import run_in_threadpool
 
 
 class MinioService:

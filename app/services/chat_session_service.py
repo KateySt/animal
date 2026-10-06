@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import ValidationError, get_anthropic_config
-from app.core.anthropic import generate_summary, generate_title, serialize_transcript
+from app.core.anthropic import generate_summary, generate_title, remove_orphaned_tool_blocks, serialize_transcript
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
 from app.db import MessageRole
@@ -30,12 +30,13 @@ class ChatSessionService:
         result = await self._session.execute(select(ChatSession).where(ChatSession.user_id == user.id))
         return result.scalars().all()
 
-    async def get_session_with_messages(self, session_id: UUID) -> ChatSession:
+    async def get_session_with_messages(self, session_id: UUID, user: User) -> ChatSession:
         result = await self._session.execute(
             select(ChatSession).where(ChatSession.id == session_id).options(selectinload(ChatSession.messages)))
         chat_session = result.scalar_one_or_none()
         if chat_session is None:
             raise NotFoundError(ErrorCode.CHAT_SESSION_NOT_FOUND)
+        self.check_session_owner(chat_session.user_id, user)
         return chat_session
 
     async def get_session(self, session_id: UUID) -> ChatSession:
@@ -63,21 +64,24 @@ class ChatSessionService:
         )
         messages = list(reversed(rows.all()))
 
-        while messages and messages[0].role == MessageRole.tool:
-            prev = await self._session.execute(
+        if messages and messages[0].role != MessageRole.user:
+            turn_start = await self._session.execute(
+                select(func.max(ChatMessage.created_at))
+                .where(ChatMessage.session_id == session_id)
+                .where(ChatMessage.role == MessageRole.user)
+                .where(ChatMessage.created_at <= messages[0].created_at)
+            )
+            turn_start_at = turn_start.scalar_one()
+            query = (
                 select(ChatMessage.role, ChatMessage.content, ChatMessage.created_at)
                 .where(ChatMessage.session_id == session_id)
-                .where(ChatMessage.created_at < messages[0].created_at)
-                .order_by(ChatMessage.created_at.desc())
-                .limit(1)
+                .order_by(ChatMessage.created_at.asc())
             )
-            prev_row = prev.first()
-            if prev_row is None:
-                messages.pop(0)
-                break
-            messages.insert(0, prev_row)
+            if turn_start_at is not None:
+                query = query.where(ChatMessage.created_at >= turn_start_at)
+            messages = list((await self._session.execute(query)).all())
 
-        return [(role, content) for role, content, _ in messages]
+        return remove_orphaned_tool_blocks((role, content) for role, content, _ in messages)
 
     async def count_user_messages(self, session_id: UUID) -> int:
         result = await self._session.execute(
@@ -133,6 +137,9 @@ class ChatSessionService:
         message = ChatMessage(session_id=session_id, role=role, content=content)
         self._session.add(message)
         await self._session.commit()
+
+    async def rollback(self):
+        await self._session.rollback()
 
     async def count_messages(self, session_id: UUID) -> int:
         result = await self._session.execute(select(func.count()).where(ChatMessage.session_id == session_id))

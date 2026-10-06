@@ -27,16 +27,12 @@ from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram as lk_deepgram
 from livekit.plugins import elevenlabs as lk_elevenlabs
 from livekit.plugins import silero as lk_silero
-from sqlalchemy import func, select
 
 from app.core.config import get_anthropic_config, get_livekit_config, get_speech_config
 from app.core.prompts import SYSTEM_PROMPT
-from app.db import DocumentStatus
-from app.db.models import ChatDocument
 from app.db.session import get_session_factory
 from app.livekit_worker.db import worker_db_engine
 from app.livekit_worker.dependencies import get_chat_session_service
-from app.livekit_worker.document_watcher import DocumentToolWatcher
 from app.livekit_worker.persistence import (
     ConversationPersistenceWorker,
     _conversation_item_to_row,
@@ -74,28 +70,17 @@ async def entrypoint(ctx: JobContext):
         user = chat_session.user
 
         chat_ctx = await hydrate_chat_context(session_service, chat_session)
-        tools: list[Tool | Toolset] = [build_invoices_function_tool(db_session, user), build_web_search_function_tool()]
-
-        ready_documents = await db_session.execute(
-            select(func.count())
-            .select_from(ChatDocument)
-            .where(ChatDocument.chat_session_id == session_id)
-            .where(ChatDocument.status == DocumentStatus.ready)
-        )
-        has_ready_documents = ready_documents.scalar_one() > 0
-        if has_ready_documents:
-            tools.append(build_search_documents_function_tool(session_id))
+        tools: list[Tool | Toolset] = [
+            build_invoices_function_tool(db_session, user),
+            build_web_search_function_tool(),
+            build_search_documents_function_tool(session_factory, session_id),
+        ]
 
         agent = Agent(
             instructions=SYSTEM_PROMPT,
             chat_ctx=chat_ctx,
             tools=tools,
         )
-
-        if not has_ready_documents:
-            document_watcher = DocumentToolWatcher(agent, session_factory, session_id)
-            document_watcher.start()
-            stack.push_async_callback(document_watcher.aclose)
 
         anthropic_config = get_anthropic_config()
         speech_config = get_speech_config()

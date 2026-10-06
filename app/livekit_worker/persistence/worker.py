@@ -44,6 +44,7 @@ class ConversationPersistenceWorker:
             return True
         except Exception:
             log.exception(f"Failed to persist LiveKit conversation item for session {self._session_id}")
+            await self._session_service.rollback()
             return False
 
     async def _run_post_message_hooks(self, content: Any) -> None:
@@ -52,3 +53,4 @@ class ConversationPersistenceWorker:
             await self._session_service.run_post_message_hooks(chat_session, content)
         except Exception:
             log.exception(f"Failed to run post-message hooks for session {self._session_id}")
+            await self._session_service.rollback()

@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from livekit.agents import FunctionTool, function_tool
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.prompts import GET_INVOICES_TOOL_DESCRIPTION, SEARCH_DOCUMENTS_TOOL_DESCRIPTION, WEB_SEARCH_TOOL_DESCRIPTION
 from app.db import InvoiceStatus
@@ -30,9 +30,12 @@ def build_web_search_function_tool() -> FunctionTool:
     return web_search
 
 
-def build_search_documents_function_tool(chat_session_id: UUID) -> FunctionTool:
+def build_search_documents_function_tool(
+    session_factory: async_sessionmaker[AsyncSession], chat_session_id: UUID
+) -> FunctionTool:
     @function_tool(description=SEARCH_DOCUMENTS_TOOL_DESCRIPTION)
     async def search_documents(query: str, top_k: int = 5) -> str:
-        return await search_chat_documents_tool(chat_session_id, query, top_k)
+        async with session_factory() as session:
+            return await search_chat_documents_tool(session, chat_session_id, query, top_k)
 
     return search_documents

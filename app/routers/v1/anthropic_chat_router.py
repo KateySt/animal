@@ -38,9 +38,9 @@ async def list_sessions(
 async def get_session(
         session_id: UUID,
         service: ChatSessionService = Depends(get_chat_session_service),
-        _: User = Depends(get_current_user),
+        user: User = Depends(get_current_user),
 ) -> ChatSessionReadWithMessages:
-    chat_session = await service.get_session_with_messages(session_id)
+    chat_session = await service.get_session_with_messages(session_id, user)
     return ChatSessionReadWithMessages(
         id=chat_session.id,
         title=chat_session.title,

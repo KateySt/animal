@@ -80,19 +80,24 @@ async def web_search_tool(query: str, num_results: int = 5) -> str:
     return json.dumps({"results": items})
 
 
-async def search_chat_documents_tool(session: AsyncSession, chat_session_id: UUID, query: str, top_k: int = 5) -> str:
+async def get_document_statuses(session: AsyncSession, chat_session_id: UUID) -> dict[str, list[str]]:
     rows = await session.execute(
         select(ChatDocument.filename, ChatDocument.status).where(ChatDocument.chat_session_id == chat_session_id)
     )
     documents = rows.all()
-    ready = [filename for filename, status in documents if status == DocumentStatus.ready]
-    processing = [
-        filename for filename, status in documents if status in (DocumentStatus.uploading, DocumentStatus.embedding)
-    ]
-    failed = [filename for filename, status in documents if status == DocumentStatus.failed]
-    status_info = {"ready_documents": ready, "processing_documents": processing, "failed_documents": failed}
+    return {
+        "ready_documents": [filename for filename, status in documents if status == DocumentStatus.ready],
+        "processing_documents": [
+            filename for filename, status in documents if status in (DocumentStatus.uploading, DocumentStatus.embedding)
+        ],
+        "failed_documents": [filename for filename, status in documents if status == DocumentStatus.failed],
+    }
 
-    if not ready:
+
+async def search_chat_documents_tool(session: AsyncSession, chat_session_id: UUID, query: str, top_k: int = 5) -> str:
+    status_info = await get_document_statuses(session, chat_session_id)
+
+    if not status_info["ready_documents"]:
         return json.dumps({"chunks": [], **status_info})
 
     try:

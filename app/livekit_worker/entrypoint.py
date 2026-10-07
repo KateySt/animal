@@ -9,7 +9,6 @@ if sys.platform == "win32":
 
 
 from livekit.agents import (
-    Agent,
     AgentSession,
     ConversationItemAddedEvent,
     FunctionToolsExecutedEvent,
@@ -29,8 +28,8 @@ from livekit.plugins import elevenlabs as lk_elevenlabs
 from livekit.plugins import silero as lk_silero
 
 from app.core.config import get_anthropic_config, get_livekit_config, get_speech_config
-from app.core.prompts import SYSTEM_PROMPT
 from app.db.session import get_session_factory
+from app.livekit_worker.agent import ChatAgent
 from app.livekit_worker.db import worker_db_engine
 from app.livekit_worker.dependencies import get_chat_session_service
 from app.livekit_worker.persistence import (
@@ -76,11 +75,13 @@ async def entrypoint(ctx: JobContext):
             build_search_documents_function_tool(session_factory, session_id),
         ]
 
-        agent = Agent(
-            instructions=SYSTEM_PROMPT,
+        agent = ChatAgent(
+            session_factory=session_factory,
+            chat_session_id=session_id,
             chat_ctx=chat_ctx,
             tools=tools,
         )
+        await agent.refresh_documents()
 
         anthropic_config = get_anthropic_config()
         speech_config = get_speech_config()
@@ -134,6 +135,8 @@ async def entrypoint(ctx: JobContext):
 # to answer text only
 async def text_only_reply_cb(session: AgentSession, ev: TextInputEvent) -> None:
     async with session._claim_user_turn():
+        if isinstance(session.current_agent, ChatAgent):
+            await session.current_agent.refresh_documents()
         session.output.set_audio_enabled(False)
         try:
             await session.generate_reply(user_input=ev.text)

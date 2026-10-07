@@ -47,7 +47,7 @@ cp .env.sample .env
 make install          # == poetry install
 
 # 4. Start infrastructure (Postgres, Redis, MinIO, LiveKit)
-docker compose -f docker/docker-compose.yml up -d postgres redis minio livekit
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit
 
 # 5. Apply database migrations
 make upgrade          # == poetry run alembic upgrade head
@@ -141,7 +141,7 @@ Variables by group (`.env.sample` is the source of truth):
 For local development, name the services so the containerised API isn't built and started next to `make dev`:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d postgres redis minio livekit   # start (+ pgadmin redisinsight if needed)
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit   # start (+ pgadmin redisinsight if needed)
 docker compose -f docker/docker-compose.yml ps         # status
 docker compose -f docker/docker-compose.yml logs -f    # logs
 docker compose -f docker/docker-compose.yml down       # stop
@@ -215,7 +215,7 @@ Document search in chat additionally needs the [`book-rag`](../book-rag/README.m
 
 ```bash
 make install                                                                    # once, after cloning
-docker compose -f docker/docker-compose.yml up -d postgres redis minio livekit  # start infra
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit  # start infra
 make upgrade                                                                    # migrate DB
 make dev                                                                        # terminal 1: API with reload
 poetry run python -m app.livekit_worker.entrypoint dev                          # terminal 2: worker

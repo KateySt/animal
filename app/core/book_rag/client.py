@@ -35,11 +35,18 @@ with_retry = retry(
 
 
 @with_retry
-async def request_embedding(chat_session_id: UUID, document_id: UUID, filename: str, content_type: str, data: bytes) -> None:
+async def request_embedding(
+    chat_session_id: UUID, document_id: UUID, filename: str, object_name: str, *, reindex: bool = False
+) -> None:
     response = await client_book_rag.post(
         "/documents",
-        data={"chat_session_id": str(chat_session_id), "document_id": str(document_id), "filename": filename},
-        files={"file": (filename, data, content_type)},
+        json={
+            "chat_session_id": str(chat_session_id),
+            "document_id": str(document_id),
+            "filename": filename,
+            "object_name": object_name,
+            "reindex": reindex,
+        },
     )
     _raise_for_retry(response)
 

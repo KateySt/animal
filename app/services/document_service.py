@@ -1,5 +1,7 @@
+import re
 import uuid
 from collections.abc import Sequence
+from pathlib import PurePath
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -15,13 +17,21 @@ from app.db import DocumentStatus
 from app.db.models import ChatDocument
 from app.db.models.user import User
 from app.services.chat_session_service import ChatSessionService
-from app.services.minio_service import minio_service
+from app.services.minio_service import documents_storage
+
+_UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class DocumentService:
     def __init__(self, session: AsyncSession, chat_session_service: ChatSessionService) -> None:
         self.session = session
         self.chat_session_service = chat_session_service
+
+    @staticmethod
+    def _safe_object_filename(filename: str) -> str:
+        # The original name stays in ChatDocument.filename; the object key only needs to be readable and safe
+        name = _UNSAFE_FILENAME_CHARS.sub("_", PurePath(filename).name).strip("._")
+        return name[:100] or "document"
 
     async def count_documents(self, chat_session_id: UUID) -> int:
         result = await self.session.execute(select(func.count()).where(ChatDocument.chat_session_id == chat_session_id))
@@ -46,7 +56,7 @@ class DocumentService:
 
         await book_rag_delete_document(document_id)
 
-        await minio_service.delete_file(document.minio_object_name)
+        await documents_storage.delete_file(document.minio_object_name)
         await self.session.delete(document)
         await self.session.commit()
 
@@ -80,8 +90,8 @@ class DocumentService:
         if existing_count >= config.BOOK_RAG_MAX_DOCUMENTS_PER_SESSION:
             raise BadRequestError(ErrorCode.DOCUMENT_LIMIT_REACHED)
 
-        object_name = f"chat-documents/{chat_session_id}/{uuid.uuid4().hex}_{filename}"
-        await minio_service.upload_file(object_name, data, content_type)
+        object_name = f"chat-documents/{chat_session_id}/{uuid.uuid4().hex}_{self._safe_object_filename(filename)}"
+        await documents_storage.upload_file(object_name, data, content_type)
 
         document = ChatDocument(
             chat_session_id=chat_session_id,
@@ -96,7 +106,7 @@ class DocumentService:
         await self.session.refresh(document)
 
         try:
-            await request_embedding(chat_session_id, document.id, filename, content_type, data)
+            await request_embedding(chat_session_id, document.id, filename, object_name)
         except Exception:
             document.failed()
             await self.session.commit()

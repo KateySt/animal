@@ -93,6 +93,7 @@ class MinioConfig(BaseSettings):
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
     MINIO_BUCKET_NAME: str
+    MINIO_DOCUMENTS_BUCKET_NAME: str = "chat-documents"
     MINIO_HOST: str
     MINIO_REGION: str
     MINIO_SECURE: bool = False

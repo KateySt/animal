@@ -22,7 +22,9 @@ class ImageService:
 
         image_bytes = await get_image_from_text(description)
         filename = f"{uuid4().hex}.png"
-        url = await minio_service.upload_file(f"chat-images/{session_id}/{filename}", image_bytes, "image/png")
+        object_name = f"chat-images/{session_id}/{filename}"
+        await minio_service.upload_file(object_name, image_bytes, "image/png")
+        url = minio_service.public_url(object_name)
 
         assistant_content = [
             {"type": "text", "text": "Generated image"},

@@ -11,9 +11,10 @@ from app.core.minio import client
 
 
 class MinioService:
-    def __init__(self) -> None:
+    def __init__(self, bucket: str, *, public: bool) -> None:
         self._client = client
-        self._bucket = get_minio_config().MINIO_BUCKET_NAME
+        self._bucket = bucket
+        self._public = public
 
     async def _ensure_bucket(self) -> None:
         exists = await run_in_threadpool(self._client.bucket_exists, self._bucket)
@@ -21,6 +22,9 @@ class MinioService:
             return
 
         await run_in_threadpool(self._client.make_bucket, self._bucket)
+        if not self._public:
+            return
+
         policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -34,7 +38,12 @@ class MinioService:
         }
         await run_in_threadpool(self._client.set_bucket_policy, self._bucket, json.dumps(policy))
 
-    async def upload_file(self, object_name: str, data: bytes, content_type: str) -> str:
+    def public_url(self, object_name: str) -> str:
+        if not self._public:
+            raise ValueError(f"bucket {self._bucket} is private, objects have no public URL")
+        return get_minio_config().bucket_url + object_name
+
+    async def upload_file(self, object_name: str, data: bytes, content_type: str) -> None:
         await self._ensure_bucket()
         await run_in_threadpool(
             self._client.put_object,
@@ -44,7 +53,6 @@ class MinioService:
             len(data),
             content_type=content_type,
         )
-        return get_minio_config().bucket_url + object_name
 
     async def delete_file(self, object_name: str) -> None:
         await self._ensure_bucket()
@@ -59,4 +67,5 @@ class MinioService:
             raise NotFoundError(ErrorCode.AVATAR_NOT_FOUND) from exc
 
 
-minio_service = MinioService()
+minio_service = MinioService(get_minio_config().MINIO_BUCKET_NAME, public=True)
+documents_storage = MinioService(get_minio_config().MINIO_DOCUMENTS_BUCKET_NAME, public=False)

@@ -1,4 +1,5 @@
 from app.core.prompts.system_prompt import (
+    CHAT_DOCUMENTS_TEMPLATE,
     GET_INVOICES_TOOL_DESCRIPTION,
     SEARCH_DOCUMENTS_TOOL_DESCRIPTION,
     SYSTEM_PROMPT,

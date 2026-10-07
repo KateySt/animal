@@ -13,6 +13,7 @@ from app.core.exceptions import NotFoundError
 from app.db import MessageRole
 from app.db.models import ChatMessage, ChatSession
 from app.db.models.user import User
+from app.services.document_purger import document_purger
 
 
 class ChatSessionService:
@@ -130,6 +131,7 @@ class ChatSessionService:
     async def delete_session(self, session_id: UUID, user: User) -> None:
         chat_session = await self.get_session(session_id)
         self.check_session_owner(chat_session.user_id, user)
+        await document_purger.purge_sessions(self._session, [session_id])
         await self._session.delete(chat_session)
         await self._session.commit()
 

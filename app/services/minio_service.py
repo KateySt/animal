@@ -1,6 +1,7 @@
 import json
 from io import BytesIO
 
+from minio.deleteobjects import DeleteObject
 from minio.error import S3Error
 from starlette.concurrency import run_in_threadpool
 
@@ -8,6 +9,10 @@ from app.core.config import get_minio_config
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
 from app.core.minio import client
+
+
+class ObjectDeletionError(Exception):
+    pass
 
 
 class MinioService:
@@ -57,6 +62,17 @@ class MinioService:
     async def delete_file(self, object_name: str) -> None:
         await self._ensure_bucket()
         await run_in_threadpool(self._client.remove_object, self._bucket, object_name)
+
+    async def delete_files(self, object_names: list[str]) -> None:
+        if not object_names:
+            return
+        await self._ensure_bucket()
+        errors = await run_in_threadpool(self._remove_objects, object_names)
+        if errors:
+            raise ObjectDeletionError(f"{len(errors)} object(s) not deleted, first: {errors[0]}")
+
+    def _remove_objects(self, object_names: list[str]) -> list:
+        return list(self._client.remove_objects(self._bucket, [DeleteObject(name) for name in object_names]))
 
     async def file_exists(self, object_name: str) -> bool:
         await self._ensure_bucket()

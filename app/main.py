@@ -15,6 +15,7 @@ from app.core import get_app_config
 from app.core.book_rag.client import close_client as close_book_rag_client
 from app.core.config import get_auth_config, get_stripe_config
 from app.core.exceptions import CustomError
+from app.core.middleware import UnhandledErrorMiddleware
 from app.db.session import AsyncSessionLocal, engine
 from app.routers import v1_router
 from app.services.redis_service import redis_service
@@ -39,6 +40,8 @@ app = FastAPI(
     debug=get_app_config().DEBUG,
     lifespan=lifespan,
 )
+
+app.add_middleware(UnhandledErrorMiddleware)
 
 app.add_middleware(SessionMiddleware, secret_key=get_auth_config().ADMIN_SECRET)
 

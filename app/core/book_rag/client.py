@@ -52,10 +52,13 @@ async def request_embedding(
 
 
 @with_retry
-async def delete_document(document_id: UUID) -> None:
-    response = await client_book_rag.delete(f"/documents/{document_id}")
-    if response.status_code == httpx.codes.NOT_FOUND:
+async def delete_documents(document_ids: list[UUID]) -> None:
+    if not document_ids:
         return
+    response = await client_book_rag.post(
+        "/documents/delete",
+        json={"document_ids": [str(document_id) for document_id in document_ids]},
+    )
     _raise_for_retry(response)
 
 

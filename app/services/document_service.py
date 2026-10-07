@@ -9,7 +9,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import get_book_rag_config
-from app.core.book_rag import delete_document as book_rag_delete_document
 from app.core.book_rag import request_embedding
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import BadRequestError, NotFoundError
@@ -17,6 +16,7 @@ from app.db import DocumentStatus
 from app.db.models import ChatDocument
 from app.db.models.user import User
 from app.services.chat_session_service import ChatSessionService
+from app.services.document_purger import document_purger
 from app.services.minio_service import documents_storage
 
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
@@ -54,9 +54,7 @@ class DocumentService:
 
         document = await self.get_document(document_id, chat_session_id)
 
-        await book_rag_delete_document(document_id)
-
-        await documents_storage.delete_file(document.minio_object_name)
+        await document_purger.purge([document])
         await self.session.delete(document)
         await self.session.commit()
 

@@ -3,8 +3,7 @@ import base64
 import httpx
 
 from app.core.config import get_image_config
-from app.core.error_codes import ErrorCode
-from app.core.exceptions import BadRequestError
+from app.core.exceptions import ImageGenerationUnavailableError
 
 OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
 TIMEOUT = 60.0
@@ -22,5 +21,8 @@ async def get_image_from_text(prompt: str) -> bytes:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise BadRequestError(ErrorCode.IMAGE_GEN_PROVIDER_ERROR) from exc
-    return base64.b64decode(response.json()["data"][0]["b64_json"])
+            raise ImageGenerationUnavailableError() from exc
+    try:
+        return base64.b64decode(response.json()["data"][0]["b64_json"])
+    except (ValueError, KeyError, IndexError, TypeError) as exc:  # ValueError also covers bad JSON and bad base64
+        raise ImageGenerationUnavailableError() from exc

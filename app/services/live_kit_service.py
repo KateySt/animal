@@ -3,9 +3,6 @@ from uuid import UUID
 
 from livekit.api import (
     AccessToken,
-    CreateAgentDispatchRequest,
-    ListParticipantsRequest,
-    LiveKitAPI,
     RoomAgentDispatch,
     RoomConfiguration,
     VideoGrants,
@@ -27,7 +24,8 @@ async def create_live_kit_token(session_id: UUID, user: User) -> LiveKitTokenRes
         .with_grants(VideoGrants(room_join=True, room=room_name))
         .with_room_config(
             RoomConfiguration(
-                agents=[RoomAgentDispatch(agent_name=config.LIVEKIT_AGENT_NAME, metadata=str(session_id))]
+                agents=[RoomAgentDispatch(agent_name=config.LIVEKIT_AGENT_NAME, metadata=str(session_id))],
+                departure_timeout=1,
             )
         )
         .to_jwt()

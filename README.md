@@ -5,11 +5,11 @@ animals & health logs, Stripe invoicing, an admin panel, and an AI chat assistan
 (text + voice over LiveKit, image generation, PDF documents via `book-rag`).
 
 **Stack:** FastAPI · SQLAlchemy 2 (async) · asyncpg · PostgreSQL · Alembic ·
-Pydantic v2 · Redis · Socket.IO · MinIO · LiveKit (tokens) · Stripe · Poetry · Python 3.12
+Pydantic v2 · Redis · MinIO · LiveKit (tokens) · Stripe · Poetry · Python 3.12
 
 > Running the whole system (API + agent + book-rag + frontend)? See the [root README](../README.md).
 
-This project is the API only (`app.main:asgi_app`: REST API + Socket.IO at `/ws`). The LiveKit voice/text
+This project is the API only (`app.main:app`, REST). Document statuses are polled by the frontend over REST. The LiveKit voice/text
 agent is a separate project, [`../animal-agent/`](../animal-agent/README.md); it calls this API over HTTP
 (see [Agent internal API](#agent-internal-api)).
 
@@ -51,15 +51,13 @@ docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-ini
 make upgrade          # == poetry run alembic upgrade head
 
 # 6. Run the API (auto-reload)
-make dev              # == poetry run uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
+make dev              # == poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 7. For chat, run the agent from ../animal-agent (see its README)
 ```
 
 The API is now on **http://localhost:8000** — docs at **http://localhost:8000/docs**.
 
-> Uvicorn must serve `app.main:asgi_app` (Socket.IO wrapped around FastAPI), not `app.main:app`,
-> otherwise `/ws` returns 404 and realtime document statuses never arrive.
 
 ---
 
@@ -102,7 +100,7 @@ Variables by group (`.env.sample` is the source of truth):
 | Group | Variables | Notes |
 |---|---|---|
 | PostgreSQL | `DB_NAME` `DB_USER` `DB_PASSWORD` `DB_HOST` `DB_PORT` `DB_ECHO` | also used by the compose `postgres` service |
-| Redis | `REDIS_HOST` `REDIS_PORT` `REDIS_USER` `REDIS_PASSWORD` | cache, permissions version, Socket.IO fan-out |
+| Redis | `REDIS_HOST` `REDIS_PORT` `REDIS_USER` `REDIS_PASSWORD` | cache, permissions version |
 | Auth | `ACCESS_TOKEN_SECRET` `JWT_ALGORITHM` `ACCESS_TOKEN_TIME_MINUTES` `REFRESH_TOKEN_TIME_DAYS` `COOKIE_SECURE` `COOKIE_DOMAIN` | `COOKIE_SECURE` defaults to `true`; set `false` only if your browser drops the refresh cookie over plain HTTP |
 | Admin | `ADMIN_SECRET` `SUPERUSER_EMAIL` `SUPERUSER_PASSWORD` | starlette-admin + bootstrap superuser |
 | Frontend | `CORS_ORIGINS` `FRONTEND_URL` | e.g. `http://localhost:5173` |

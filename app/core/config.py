@@ -20,6 +20,7 @@ class DBConfig(BaseSettings):
     DB_HOST: str
     DB_PORT: int
     DB_ECHO: bool = False
+    DB_SSL: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -27,6 +28,10 @@ class DBConfig(BaseSettings):
     @property
     def async_database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def connect_args(self) -> dict[str, str]:
+        return {"ssl": "require"} if self.DB_SSL else {}
 
 
 class AuthConfig(BaseSettings):
@@ -61,11 +66,6 @@ class RedisConfig(BaseSettings):
     REDIS_PASSWORD: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    @computed_field
-    @property
-    def redis_url(self) -> str:
-        return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
 
 class StripeConfig(BaseSettings):

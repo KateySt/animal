@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-import socketio
 import stripe
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -19,7 +18,6 @@ from app.core.middleware import UnhandledErrorMiddleware
 from app.db.session import AsyncSessionLocal, engine
 from app.routers import v1_router
 from app.services.redis_service import redis_service
-from app.ws import sio
 
 stripe.api_key = get_stripe_config().STRIPE_SECRET_KEY
 
@@ -65,5 +63,3 @@ async def app_error_handler(_: Request, error: CustomError) -> JSONResponse:
 
 
 app.include_router(v1_router, prefix="/api")
-
-asgi_app = socketio.ASGIApp(sio, other_asgi_app=app, socketio_path="ws")

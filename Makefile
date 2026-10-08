@@ -4,10 +4,10 @@ install:
 	poetry install
 
 run:
-	poetry run uvicorn app.main:asgi_app --host 0.0.0.0 --port 8000
+	poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 dev:
-	poetry run uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
+	poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 test:
 	poetry run pytest

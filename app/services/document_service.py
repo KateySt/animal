@@ -63,7 +63,6 @@ class DocumentService:
         document.status = status
         document.error_message = error
         await self.session.commit()
-        await self._publish_status(document)
         return document
 
     async def list_documents(self, chat_session_id: UUID, user: User) -> Sequence[ChatDocument]:
@@ -108,19 +107,5 @@ class DocumentService:
         except Exception:
             document.failed()
             await self.session.commit()
-            await self._publish_status(document)
 
         return document
-
-    async def _publish_status(self, document: ChatDocument) -> None:
-        # circular import
-        from app.ws import get_chat_session_room, sio
-
-        payload = {
-            "type": "document_status",
-            "document_id": str(document.id),
-            "filename": document.filename,
-            "status": document.status.value,
-            "error": document.error_message,
-        }
-        await sio.emit("document_status", payload, room=get_chat_session_room(document.chat_session_id))

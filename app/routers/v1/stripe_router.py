@@ -41,9 +41,9 @@ async def list_my_invoices(
 async def get_invoice(
     invoice_id: UUID,
     service: InvoiceService = Depends(get_invoice_service),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> InvoiceWithLogsRead:
-    return await service.get_by_id(invoice_id)
+    return await service.get_visible_to(invoice_id, user)
 
 
 @router.patch("/{invoice_id}", response_model=InvoiceWithLogsRead)

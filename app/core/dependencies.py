@@ -1,14 +1,16 @@
+import hmac
 import uuid
 from collections.abc import Callable
 
-from fastapi import Depends
+from fastapi import Depends, File, Header, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_agent_config, get_book_rag_config
 from app.core.error_codes import ErrorCode
-from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.exceptions import BadRequestError, ForbiddenError, UnauthorizedError
 from app.core.security import decode_access_token
 from app.db import TokenType
 from app.db.models.permission import Permission
@@ -17,6 +19,7 @@ from app.db.models.user import User
 from app.db.session import get_db_session
 from app.schemas import Principal
 from app.services import redis_service
+from app.core.constants import ALLOWED_CONTENT_TYPES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="v1/auth/login", auto_error=False)
 
@@ -105,3 +108,28 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise UnauthorizedError(ErrorCode.INACTIVE_USER)
     return user
+
+
+async def verify_internal_token(x_internal_token: str = Header(...)) -> None:
+    expected = get_book_rag_config().INTERNAL_SERVICE_TOKEN
+    if not expected or not x_internal_token or not hmac.compare_digest(x_internal_token.encode(), expected.encode()):
+        raise UnauthorizedError(ErrorCode.INVALID_INTERNAL_TOKEN)
+
+
+async def verify_agent_token(x_agent_token: str = Header(...)) -> None:
+    if not x_agent_token or not hmac.compare_digest(x_agent_token.encode(), get_agent_config().AGENT_SERVICE_TOKEN.encode()):
+        raise UnauthorizedError(ErrorCode.INVALID_AGENT_TOKEN)
+
+
+def validate_document_file(file: UploadFile = File(...)) -> UploadFile:
+    filename = file.filename or ""
+    extension = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+    expected_content_type = ALLOWED_CONTENT_TYPES.get(f".{extension}")
+    if not filename or expected_content_type is None or file.content_type != expected_content_type:
+        raise BadRequestError(ErrorCode.DOCUMENT_INVALID_TYPE)
+
+    config = get_book_rag_config()
+    if file.size is not None and file.size > config.BOOK_RAG_MAX_UPLOAD_SIZE_BYTES:
+        raise BadRequestError(ErrorCode.DOCUMENT_TOO_LARGE)
+
+    return file

@@ -1,1 +1,0 @@
-from app.core.prompts.system_prompt import SYSTEM_PROMPT

@@ -102,20 +102,21 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - animal_net
 
-  livekit:
-    image: livekit/livekit-server:latest
-    container_name: animal_livekit
-    restart: unless-stopped
-    command: --config /etc/livekit.yaml
+  minio-init:
+    image: minio/minio:latest
+    container_name: animal_minio_init
+    env_file:
+      - ../.env
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      MINIO_DOCUMENTS_BUCKET_NAME: ${MINIO_DOCUMENTS_BUCKET_NAME:-chat-documents}
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
-    ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "52000-52050:52000-52050/udp"
+      - ./minio/init.sh:/init.sh:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+    depends_on:
+      - minio
     networks:
       - animal_net
 

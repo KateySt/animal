@@ -1,7 +1,9 @@
 from functools import lru_cache
+from typing import Any
 
-from pydantic import computed_field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from redis.asyncio import SSLConnection
 
 
 class AppConfig(BaseSettings):
@@ -20,6 +22,7 @@ class DBConfig(BaseSettings):
     DB_HOST: str
     DB_PORT: int
     DB_ECHO: bool = False
+    DB_SSL: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -27,6 +30,10 @@ class DBConfig(BaseSettings):
     @property
     def async_database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def connect_args(self) -> dict[str, str]:
+        return {"ssl": "require"} if self.DB_SSL else {}
 
 
 class AuthConfig(BaseSettings):
@@ -59,8 +66,21 @@ class RedisConfig(BaseSettings):
     REDIS_PORT: int
     REDIS_USER: str
     REDIS_PASSWORD: str
+    REDIS_SSL: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @property
+    def pool_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "host": self.REDIS_HOST,
+            "port": self.REDIS_PORT,
+            "username": self.REDIS_USER or None,
+            "password": self.REDIS_PASSWORD,
+        }
+        if self.REDIS_SSL:
+            kwargs["connection_class"] = SSLConnection
+        return kwargs
 
 
 class StripeConfig(BaseSettings):
@@ -88,6 +108,7 @@ class MinioConfig(BaseSettings):
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
     MINIO_BUCKET_NAME: str
+    MINIO_DOCUMENTS_BUCKET_NAME: str = "chat-documents"
     MINIO_HOST: str
     MINIO_REGION: str
     MINIO_SECURE: bool = False
@@ -116,16 +137,6 @@ class TestConfig(BaseSettings):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
-class SpeechConfig(BaseSettings):
-    DEEPGRAM_API_KEY: str
-    DEEPGRAM_MODEL: str = "nova-2"
-    ELEVENLABS_API_KEY: str
-    ELEVENLABS_VOICE_ID: str
-    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
-
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-
 class ImageConfig(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_IMAGE_MODEL: str
@@ -141,6 +152,22 @@ class LiveKitConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+class BookRagConfig(BaseSettings):
+    BOOK_RAG_BASE_URL: str
+    INTERNAL_SERVICE_TOKEN: str
+    BOOK_RAG_MAX_UPLOAD_SIZE_BYTES: int = 15 * 1024 * 1024
+    BOOK_RAG_MAX_DOCUMENTS_PER_SESSION: int = 5
+    BOOK_RAG_REQUEST_TIMEOUT_SECONDS: float = 30.0
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+class AgentConfig(BaseSettings):
+    AGENT_SERVICE_TOKEN: str = Field(min_length=32)
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
 @lru_cache
 def get_image_config() -> ImageConfig:
     return ImageConfig()
@@ -149,11 +176,6 @@ def get_image_config() -> ImageConfig:
 @lru_cache
 def get_livekit_config() -> LiveKitConfig:
     return LiveKitConfig()
-
-
-@lru_cache
-def get_speech_config() -> SpeechConfig:
-    return SpeechConfig()
 
 
 @lru_cache
@@ -194,3 +216,13 @@ def get_redis_config() -> RedisConfig:
 @lru_cache
 def get_stripe_config() -> StripeConfig:
     return StripeConfig()
+
+
+@lru_cache
+def get_book_rag_config() -> BookRagConfig:
+    return BookRagConfig()
+
+
+@lru_cache
+def get_agent_config() -> AgentConfig:
+    return AgentConfig()

@@ -1,18 +1,26 @@
 # Animal Shelter API
 
 FastAPI service for an animal shelter: RBAC auth (JWT + refresh + Google OAuth2),
-animals & health logs, Stripe invoicing, and an admin panel.
+animals & health logs, Stripe invoicing, an admin panel, and an AI chat assistant
+(text + voice over LiveKit, image generation, PDF documents via `book-rag`).
 
 **Stack:** FastAPI · SQLAlchemy 2 (async) · asyncpg · PostgreSQL · Alembic ·
-Pydantic v2 · Redis · Stripe · Poetry · Python 3.11
+Pydantic v2 · Redis · MinIO · LiveKit (tokens) · Stripe · Poetry · Python 3.12
+
+> Running the whole system (API + agent + book-rag + frontend)? See the [root README](../README.md).
+
+This project is the API only (`app.main:app`, REST). Document statuses are polled by the frontend over REST. The LiveKit voice/text
+agent is a separate project, [`../animal-agent/`](../animal-agent/README.md); it calls this API over HTTP
+(see [Agent internal API](#agent-internal-api)).
 
 ---
 
 ## Prerequisites
 
-- **Python 3.11+**
+- **Python 3.12+**
 - **Poetry 2.0+** — dependency & virtualenv manager ([install guide](https://python-poetry.org/docs/#installation))
-- **Docker + Docker Compose** — for PostgreSQL, Redis, pgAdmin, RedisInsight
+- **Docker + Docker Compose** — for PostgreSQL, Redis, MinIO (+ pgAdmin, RedisInsight)
+- **LiveKit Cloud project** — https://cloud.livekit.io, gives `LIVEKIT_URL` / key / secret
 
 Verify Poetry:
 
@@ -36,17 +44,20 @@ cp .env.sample .env
 # 3. Install dependencies (creates the virtualenv)
 make install          # == poetry install
 
-# 4. Start infrastructure (Postgres, Redis, pgAdmin, RedisInsight)
-docker compose -f docker/docker-compose.yml up -d
+# 4. Start infrastructure (Postgres, Redis, MinIO)
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init
 
 # 5. Apply database migrations
 make upgrade          # == poetry run alembic upgrade head
 
 # 6. Run the API (auto-reload)
 make dev              # == poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 7. For chat, run the agent from ../animal-agent (see its README)
 ```
 
 The API is now on **http://localhost:8000** — docs at **http://localhost:8000/docs**.
+
 
 ---
 
@@ -84,19 +95,23 @@ fill in the values — **never commit `.env`**.
 cp .env.sample .env
 ```
 
-Key variables:
+Variables by group (`.env.sample` is the source of truth):
 
-| Variable | Purpose |
-|---|---|
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` / `DB_HOST` / `DB_PORT` | PostgreSQL connection |
-| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Redis cache |
-| `ACCESS_TOKEN_SECRET` / `JWT_ALGORITHM` | JWT signing |
-| `ADMIN_SECRET` | starlette-admin session |
-| `SUPERUSER_EMAIL` / `SUPERUSER_PASSWORD` | bootstrap superuser |
-| `CORS_ORIGINS` | allowed frontend origins |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth2 |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe |
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | AI chat features |
+| Group | Variables | Notes |
+|---|---|---|
+| PostgreSQL | `DB_NAME` `DB_USER` `DB_PASSWORD` `DB_HOST` `DB_PORT` `DB_ECHO` | also used by the compose `postgres` service |
+| Redis | `REDIS_HOST` `REDIS_PORT` `REDIS_USER` `REDIS_PASSWORD` | cache, permissions version |
+| Auth | `ACCESS_TOKEN_SECRET` `JWT_ALGORITHM` `ACCESS_TOKEN_TIME_MINUTES` `REFRESH_TOKEN_TIME_DAYS` `COOKIE_SECURE` `COOKIE_DOMAIN` | `COOKIE_SECURE` defaults to `true`; set `false` only if your browser drops the refresh cookie over plain HTTP |
+| Admin | `ADMIN_SECRET` `SUPERUSER_EMAIL` `SUPERUSER_PASSWORD` | starlette-admin + bootstrap superuser |
+| Frontend | `CORS_ORIGINS` `FRONTEND_URL` | e.g. `http://localhost:5173` |
+| Google OAuth2 | `GOOGLE_CLIENT_ID` `GOOGLE_CLIENT_SECRET` `GOOGLE_REDIRECT_URI` | |
+| Stripe | `STRIPE_SECRET_KEY` `STRIPE_WEBHOOK_SECRET` | webhook secret comes from `make stripe-webhook` locally |
+| Anthropic | `ANTHROPIC_API_KEY` `ANTHROPIC_MODEL` `ANTHROPIC_MAX_TOKEN` `ANTHROPIC_TITLE_MAX_TOKEN` `ANTHROPIC_SUMMERY_MAX_TOKEN` `SUMMARY_EVERY_N` `RECENT_WINDOW` | chat model, title/summary generation, history window |
+| MinIO | `MINIO_ROOT_USER` `MINIO_ROOT_PASSWORD` `MINIO_ACCESS_KEY` `MINIO_SECRET_KEY` `MINIO_BUCKET_NAME` `MINIO_HOST` `MINIO_REGION` `MINIO_SECURE` | bucket is created on first use; `MINIO_HOST=localhost:9000` |
+| Agent API | `AGENT_SERVICE_TOKEN` | agent → API auth, at least 32 chars; must equal the agent's (see [Agent internal API](#agent-internal-api)) |
+| OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` | image generation |
+| LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | LiveKit Cloud: `LIVEKIT_URL=wss://<project>.livekit.cloud`; agent name must match the agent's (`animal-chat-agent-dev` locally) |
+| book-rag | `BOOK_RAG_BASE_URL` `INTERNAL_SERVICE_TOKEN` `BOOK_RAG_MAX_UPLOAD_SIZE_BYTES` `BOOK_RAG_MAX_DOCUMENTS_PER_SESSION` `BOOK_RAG_REQUEST_TIMEOUT_SECONDS` | token must equal book-rag's `INTERNAL_SERVICE_TOKEN` |
 
 > When running the API on the host and the database in Docker, set `DB_HOST=localhost`
 > and `REDIS_HOST=localhost` (the container ports are published to your machine).
@@ -105,17 +120,21 @@ Key variables:
 
 ## Infrastructure (Docker)
 
-`docker/docker-compose.yml` provides everything except the API itself:
+`docker/docker-compose.yml` services:
 
 | Service | Port | URL |
 |---|---|---|
-| PostgreSQL | 5432 | — |
-| Redis | 6379 | — |
-| pgAdmin | 5050 | http://localhost:5050 |
-| RedisInsight | 5540 | http://localhost:5540 |
+| `postgres` | 5432 | — |
+| `redis` | 6379 | — |
+| `minio` | 9000 (API) / 9001 (console) | http://localhost:9001 |
+| `pgadmin` | 5050 | http://localhost:5050 |
+| `redisinsight` | 5540 | http://localhost:5540 |
+| `animal_fast_api` | 80 | containerised API — **skip it for local dev** |
+
+For local development, name the services so the containerised API isn't built and started next to `make dev`:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d      # start
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init   # start (+ pgadmin redisinsight if needed)
 docker compose -f docker/docker-compose.yml ps         # status
 docker compose -f docker/docker-compose.yml logs -f    # logs
 docker compose -f docker/docker-compose.yml down       # stop
@@ -166,18 +185,35 @@ make format     # black + ruff --fix
 
 ---
 
+## Agent internal API
+
+The voice/text agent lives in [`../animal-agent/`](../animal-agent/README.md) and runs in LiveKit Cloud.
+It has no database access. This API creates the LiveKit token, dispatches the agent by `LIVEKIT_AGENT_NAME`
+and serves the agent's internal endpoints.
+
+Agent → API: base `/api/v1/internal/agent/sessions/{session_id}`, header `X-Agent-Token: <AGENT_SERVICE_TOKEN>`
+(identical in `animal/.env` and `animal-agent/.env`, at least 32 chars; 401 otherwise). Endpoints: `GET /context`,
+`POST /messages`, `GET /documents/statuses`, `POST /documents/search`, `GET /invoices`. The API does the DB work,
+book-rag search and title/summary generation. Code: `app/routers/v1/agent_internal_router.py` +
+`app/schemas/agent.py` (the agent side is `animal-agent/src/api_client.py` + `src/api_models.py` - change both together).
+
+For local chat set `LIVEKIT_AGENT_NAME=animal-chat-agent-dev` in `animal/.env` and in `animal-agent/.env`, otherwise
+jobs are split between the cloud and the local agent. The API must be reachable from the internet for a cloud agent
+(deployed URL; for testing: `cloudflared tunnel --url http://localhost:8000`).
+
+Document search in chat additionally needs the [`book-rag`](../book-rag/README.md#http-service-used-by-the-animal-backend) HTTP service (called by the API).
+
+On Windows run the API with `PYTHONUTF8=1` if logs crash with `UnicodeEncodeError` on a cp1251 console.
+
+---
+
 ## Common workflow
 
 ```bash
-make install                                             # once, after cloning
-docker compose -f docker/docker-compose.yml up -d        # start infra
-make upgrade                                             # migrate DB
-make dev                                                 # code with reload
-make check && make test                                  # before committing
-```
-
-## LiveKit run
-
-```bash
-poetry run python -m app.livekit_worker.entrypoint dev                                  # before committing
+make install                                                                    # once, after cloning
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init          # start infra
+make upgrade                                                                    # migrate DB
+make dev                                                                        # terminal 1: API with reload
+(cd ../animal-agent && uv run python -m src.entrypoint dev)                     # terminal 2: agent
+make check && make test                                                         # before committing
 ```

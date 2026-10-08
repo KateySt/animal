@@ -9,9 +9,7 @@ from app.core import get_redis_config
 class RedisService:
     def __init__(self):
         self._pool = ConnectionPool(
-            host=get_redis_config().REDIS_HOST,
-            port=get_redis_config().REDIS_PORT,
-            password=get_redis_config().REDIS_PASSWORD,
+            **get_redis_config().pool_kwargs,
             decode_responses=False,
             max_connections=10,
         )
@@ -28,6 +26,9 @@ class RedisService:
 
     async def delete_cache(self, key: str) -> None:
         await self.redis.delete(key)
+
+    async def publish(self, channel: str, message: str) -> None:
+        await self.redis.publish(channel, message)
 
 
 redis_service = RedisService()

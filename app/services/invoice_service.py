@@ -12,6 +12,9 @@ from app.db.models import HealthLog, Invoice, StripeEvent, User, invoice_crud
 from app.schemas.stripe import ConfirmPaymentResponse, InvoiceCreate, InvoiceUpdate, InvoiceWithLogsRead
 from app.services.user_service import UserService
 
+# Roles that may read any invoice; everyone else sees only their own.
+STAFF_ROLES = frozenset({"vet", "admin"})
+
 
 class InvoiceService:
     def __init__(self, session: AsyncSession, user_service: UserService) -> None:
@@ -29,6 +32,13 @@ class InvoiceService:
         if invoice is None:
             raise NotFoundError(ErrorCode.INVOICE_NOT_FOUND)
         return InvoiceWithLogsRead.model_validate(invoice)
+
+    async def get_visible_to(self, invoice_id: UUID, user: User) -> InvoiceWithLogsRead:
+        invoice = await self.get_by_id(invoice_id)
+        is_staff = user.is_superuser or bool(STAFF_ROLES & {role.name for role in user.roles})
+        if invoice.user_id != user.id and not is_staff:
+            raise ForbiddenError(ErrorCode.INVOICE_WRONG_OWNER)
+        return invoice
 
     async def get_all_for_user(self, user_id: UUID) -> list[InvoiceWithLogsRead]:
         result = await self._session.execute(

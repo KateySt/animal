@@ -2,6 +2,7 @@ from fastcrud import FastCRUD
 
 from app.db.models import associations
 from app.db.models.animal import Animal, AnimalTranslation
+from app.db.models.chat_document import ChatDocument
 from app.db.models.chat_message import ChatMessage
 from app.db.models.chat_session import ChatSession
 from app.db.models.health_log import HealthLog, HealthLogTranslation
@@ -18,6 +19,7 @@ animal_crud = FastCRUD(Animal)
 animal_translation_crud = FastCRUD(AnimalTranslation)
 chat_session_crud = FastCRUD(ChatSession)
 chat_message_crud = FastCRUD(ChatMessage)
+chat_document_crud = FastCRUD(ChatDocument)
 health_log_crud = FastCRUD(HealthLog)
 health_log_translation_crud = FastCRUD(HealthLogTranslation)
 invoice_crud = FastCRUD(Invoice)

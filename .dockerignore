@@ -1,0 +1,10 @@
+.env
+.env.*
+**/.env
+.venv
+tests
+alembic
+**/__pycache__
+htmlcov
+.pytest_cache
+.mypy_cache

@@ -6,9 +6,10 @@ def get_async_engine() -> AsyncEngine:
     return create_async_engine(
         get_db_config().async_database_url,
         echo=get_db_config().DB_ECHO,
+        connect_args=get_db_config().connect_args,
         pool_size=10,
         max_overflow=20,
-        pool_recycle=3600,
+        pool_recycle=300,
         pool_pre_ping=True,
     )
 

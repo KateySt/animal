@@ -46,3 +46,18 @@ class ForbiddenError(CustomError):
 class UnauthorizedError(CustomError):
     def __init__(self, error: ErrorCode, headers: dict[str, str] | None = None, detail: str | None = None):
         super().__init__(error, status_code=status.HTTP_401_UNAUTHORIZED, headers=headers, detail=detail)
+
+
+class BookRagUnavailableError(CustomError):
+    def __init__(self, detail: str | None = None):
+        super().__init__(ErrorCode.DOCUMENT_SERVICE_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+
+class DocumentStorageUnavailableError(CustomError):
+    def __init__(self, detail: str | None = None):
+        super().__init__(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+
+class ImageGenerationUnavailableError(CustomError):
+    def __init__(self, detail: str | None = None):
+        super().__init__(ErrorCode.IMAGE_GENERATION_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)

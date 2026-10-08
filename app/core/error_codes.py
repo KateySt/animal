@@ -16,6 +16,9 @@ class ErrorCode(Enum):
     def message(self) -> str:
         return self._message
 
+    # General
+    INTERNAL_ERROR = ("internal_error", "Internal server error")
+
     # Auth
     NOT_AUTHENTICATED = ("not_authenticated", "Not authenticated")
     INVALID_TOKEN = ("invalid_token", "Invalid or expired token")
@@ -74,3 +77,14 @@ class ErrorCode(Enum):
     CHAT_SESSION_NOT_FOUND = ("chat_session_not_found", "Chat session not found")
     CHAT_STREAMING_ERROR = ("chat_streaming_error", "Failed to stream chat response")
     CHAT_OWNER_NOT_MATCH = ("chat_owner_not_match", "Not your chat session")
+    IMAGE_GENERATION_UNAVAILABLE = ("image_generation_unavailable", "Image generation service is temporarily unavailable")
+
+    # Chat documents / RAG
+    DOCUMENT_NOT_FOUND = ("document_not_found", "Document not found")
+    DOCUMENT_INVALID_TYPE = ("document_invalid_type", "Only PDF files are supported")
+    DOCUMENT_TOO_LARGE = ("document_too_large", "Document file is too large")
+    DOCUMENT_LIMIT_REACHED = ("document_limit_reached", "Maximum number of documents for this chat reached")
+    DOCUMENT_SERVICE_UNAVAILABLE = ("document_service_unavailable", "Document search service is temporarily unavailable")
+    DOCUMENT_STORAGE_UNAVAILABLE = ("document_storage_unavailable", "Document storage is temporarily unavailable")
+    INVALID_INTERNAL_TOKEN = ("invalid_internal_token", "Invalid internal service token")
+    INVALID_AGENT_TOKEN = ("invalid_agent_token", "Invalid agent service token")

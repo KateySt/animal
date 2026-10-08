@@ -3,6 +3,8 @@ from starlette_admin import PasswordField
 from starlette_admin.contrib.sqla import ModelView
 
 from app.core.security import hash_password
+from app.db.models import ChatDocument, ChatSession, User
+from app.services.document_purger import document_purger
 
 
 class ResourceAdmin(ModelView):
@@ -68,6 +70,9 @@ class InvoiceAdmin(ModelView):
 
 
 class ChatSessionAdmin(ModelView):
+    async def before_delete(self, request: Request, obj: ChatSession) -> None:
+        await document_purger.purge_sessions(request.state.session, [obj.id])
+
     fields = ["id", "user", "title", "summary", "last_summarized_message_id", "messages", "created_at", "updated_at"]
     exclude_fields_from_list = ["messages", "summary"]
     searchable_fields = ["title"]
@@ -82,6 +87,27 @@ class ChatMessageAdmin(ModelView):
     fields_default_sort = [("created_at", True)]
 
 
+class ChatDocumentAdmin(ModelView):
+    async def before_delete(self, request: Request, obj: ChatDocument) -> None:
+        await document_purger.purge([obj])
+
+    fields = [
+        "id",
+        "chat_session",
+        "filename",
+        "content_type",
+        "size_bytes",
+        "minio_object_name",
+        "status",
+        "created_at",
+        "updated_at",
+    ]
+    exclude_fields_from_list = ["minio_object_name"]
+    searchable_fields = ["filename"]
+    sortable_fields = ["filename", "status", "size_bytes", "created_at"]
+    fields_default_sort = [("created_at", True)]
+
+
 class OAuthAccountAdmin(ModelView):
     fields = ["id", "user_id", "oauth_name", "account_id", "account_email", "created_at", "updated_at"]
     searchable_fields = ["account_email", "oauth_name"]
@@ -90,6 +116,9 @@ class OAuthAccountAdmin(ModelView):
 
 
 class UserAdmin(ModelView):
+    async def before_delete(self, request: Request, obj: User) -> None:
+        await document_purger.purge_user(request.state.session, obj.id)
+
     fields = [
         "id",
         "email",

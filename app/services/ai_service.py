@@ -1,12 +1,17 @@
 import json
 from datetime import UTC, date, datetime
+from uuid import UUID
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.db import InvoiceStatus
-from app.db.models import Animal, HealthLog
+from app.core.book_rag import search_documents
+from app.core.exceptions import BookRagUnavailableError
+from app.core.logger import log
+from app.db import DocumentStatus, InvoiceStatus
+from app.db.models import Animal, ChatDocument, HealthLog
 from app.db.models.invoice import Invoice
 from app.db.models.user import User
 from app.schemas.chat import AnimalToolData, HealthLogToolData, InvoiceToolData
@@ -55,3 +60,31 @@ async def get_invoices_tool(
     ]
 
     return json.dumps({"invoices": items, "total": round(sum(i["amount"] for i in items), 2)})
+
+
+async def get_document_statuses(session: AsyncSession, chat_session_id: UUID) -> dict[str, list[str]]:
+    rows = await session.execute(
+        select(ChatDocument.filename, ChatDocument.status).where(ChatDocument.chat_session_id == chat_session_id)
+    )
+    documents = rows.all()
+    return {
+        "ready_documents": [filename for filename, status in documents if status == DocumentStatus.ready],
+        "processing_documents": [
+            filename for filename, status in documents if status in (DocumentStatus.uploading, DocumentStatus.embedding)
+        ],
+        "failed_documents": [filename for filename, status in documents if status == DocumentStatus.failed],
+    }
+
+
+async def search_chat_documents_tool(session: AsyncSession, chat_session_id: UUID, query: str, top_k: int = 5) -> str:
+    status_info = await get_document_statuses(session, chat_session_id)
+
+    if not status_info["ready_documents"]:
+        return json.dumps({"chunks": [], **status_info})
+
+    try:
+        results = await search_documents(chat_session_id, query, top_k=top_k)
+    except (httpx.HTTPError, BookRagUnavailableError):
+        log.exception(f"search_documents failed for chat session {chat_session_id}")
+        return json.dumps({"error": "document search is temporarily unavailable", **status_info})
+    return json.dumps({"chunks": results, **status_info})

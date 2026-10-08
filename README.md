@@ -5,16 +5,13 @@ animals & health logs, Stripe invoicing, an admin panel, and an AI chat assistan
 (text + voice over LiveKit, image generation, PDF documents via `book-rag`).
 
 **Stack:** FastAPI · SQLAlchemy 2 (async) · asyncpg · PostgreSQL · Alembic ·
-Pydantic v2 · Redis · Socket.IO · MinIO · LiveKit Agents · Stripe · Poetry · Python 3.12
+Pydantic v2 · Redis · Socket.IO · MinIO · LiveKit (tokens) · Stripe · Poetry · Python 3.12
 
-> Running the whole system (API + worker + book-rag + frontend)? See the [root README](../README.md).
+> Running the whole system (API + agent + book-rag + frontend)? See the [root README](../README.md).
 
-This repo contains **two processes**:
-
-| Process | Entry point | Purpose |
-|---|---|---|
-| API | `app.main:asgi_app` | REST API + Socket.IO (`/ws`) |
-| LiveKit worker | `app.livekit_worker.entrypoint` | Voice/text agent: STT → Claude → TTS, persists messages |
+This project is the API only (`app.main:asgi_app`: REST API + Socket.IO at `/ws`). The LiveKit voice/text
+agent is a separate project, [`../animal-agent/`](../animal-agent/README.md); it calls this API over HTTP
+(see [Agent internal API](#agent-internal-api)).
 
 ---
 
@@ -22,7 +19,8 @@ This repo contains **two processes**:
 
 - **Python 3.12+**
 - **Poetry 2.0+** — dependency & virtualenv manager ([install guide](https://python-poetry.org/docs/#installation))
-- **Docker + Docker Compose** — for PostgreSQL, Redis, MinIO, LiveKit (+ pgAdmin, RedisInsight)
+- **Docker + Docker Compose** — for PostgreSQL, Redis, MinIO (+ pgAdmin, RedisInsight)
+- **LiveKit Cloud project** — https://cloud.livekit.io, gives `LIVEKIT_URL` / key / secret
 
 Verify Poetry:
 
@@ -46,8 +44,8 @@ cp .env.sample .env
 # 3. Install dependencies (creates the virtualenv)
 make install          # == poetry install
 
-# 4. Start infrastructure (Postgres, Redis, MinIO, LiveKit)
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit
+# 4. Start infrastructure (Postgres, Redis, MinIO)
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init
 
 # 5. Apply database migrations
 make upgrade          # == poetry run alembic upgrade head
@@ -55,8 +53,7 @@ make upgrade          # == poetry run alembic upgrade head
 # 6. Run the API (auto-reload)
 make dev              # == poetry run uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
 
-# 7. In a second terminal: run the LiveKit worker (needed for chat)
-poetry run python -m app.livekit_worker.entrypoint dev
+# 7. For chat, run the agent from ../animal-agent (see its README)
 ```
 
 The API is now on **http://localhost:8000** — docs at **http://localhost:8000/docs**.
@@ -113,10 +110,9 @@ Variables by group (`.env.sample` is the source of truth):
 | Stripe | `STRIPE_SECRET_KEY` `STRIPE_WEBHOOK_SECRET` | webhook secret comes from `make stripe-webhook` locally |
 | Anthropic | `ANTHROPIC_API_KEY` `ANTHROPIC_MODEL` `ANTHROPIC_MAX_TOKEN` `ANTHROPIC_TITLE_MAX_TOKEN` `ANTHROPIC_SUMMERY_MAX_TOKEN` `SUMMARY_EVERY_N` `RECENT_WINDOW` | chat model, title/summary generation, history window |
 | MinIO | `MINIO_ROOT_USER` `MINIO_ROOT_PASSWORD` `MINIO_ACCESS_KEY` `MINIO_SECRET_KEY` `MINIO_BUCKET_NAME` `MINIO_HOST` `MINIO_REGION` `MINIO_SECURE` | bucket is created on first use; `MINIO_HOST=localhost:9000` |
-| Speech | `DEEPGRAM_API_KEY` `ELEVENLABS_API_KEY` `ELEVENLABS_VOICE_ID` `ELEVENLABS_MODEL` | worker only (STT / TTS) |
+| Agent API | `AGENT_SERVICE_TOKEN` | agent → API auth, at least 32 chars; must equal the agent's (see [Agent internal API](#agent-internal-api)) |
 | OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` | image generation |
-| LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | same values for API and worker; `LIVEKIT_URL=ws://localhost:7880`, secret ≥ 32 chars |
-| Web search | `EXA_API_KEY` | worker tool |
+| LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | LiveKit Cloud: `LIVEKIT_URL=wss://<project>.livekit.cloud`; agent name must match the agent's (`animal-chat-agent-dev` locally) |
 | book-rag | `BOOK_RAG_BASE_URL` `INTERNAL_SERVICE_TOKEN` `BOOK_RAG_MAX_UPLOAD_SIZE_BYTES` `BOOK_RAG_MAX_DOCUMENTS_PER_SESSION` `BOOK_RAG_REQUEST_TIMEOUT_SECONDS` | token must equal book-rag's `INTERNAL_SERVICE_TOKEN` |
 
 > When running the API on the host and the database in Docker, set `DB_HOST=localhost`
@@ -133,7 +129,6 @@ Variables by group (`.env.sample` is the source of truth):
 | `postgres` | 5432 | — |
 | `redis` | 6379 | — |
 | `minio` | 9000 (API) / 9001 (console) | http://localhost:9001 |
-| `livekit` | 7880 (signal) / 7881 (TCP) / 52000-52050 (UDP) | ws://localhost:7880 |
 | `pgadmin` | 5050 | http://localhost:5050 |
 | `redisinsight` | 5540 | http://localhost:5540 |
 | `animal_fast_api` | 80 | containerised API — **skip it for local dev** |
@@ -141,7 +136,7 @@ Variables by group (`.env.sample` is the source of truth):
 For local development, name the services so the containerised API isn't built and started next to `make dev`:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit   # start (+ pgadmin redisinsight if needed)
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init   # start (+ pgadmin redisinsight if needed)
 docker compose -f docker/docker-compose.yml ps         # status
 docker compose -f docker/docker-compose.yml logs -f    # logs
 docker compose -f docker/docker-compose.yml down       # stop
@@ -192,22 +187,25 @@ make format     # black + ruff --fix
 
 ---
 
-## LiveKit worker
+## Agent internal API
 
-The voice/text agent is a **separate process** with its own DB engine (`app/livekit_worker/`).
-It reads the same `.env` as the API. The API creates the LiveKit token and dispatches the agent by
-`LIVEKIT_AGENT_NAME`; the worker joins the room, answers with Claude, and saves messages to PostgreSQL.
+The voice/text agent lives in [`../animal-agent/`](../animal-agent/README.md) and runs in LiveKit Cloud.
+It has no database access. This API creates the LiveKit token, dispatches the agent by `LIVEKIT_AGENT_NAME`
+and serves the agent's internal endpoints.
 
-```bash
-poetry run python -m app.livekit_worker.entrypoint dev     # development: hot reload, verbose logs
-poetry run python -m app.livekit_worker.entrypoint start   # production mode
-```
+Agent → API: base `/api/v1/internal/agent/sessions/{session_id}`, header `X-Agent-Token: <AGENT_SERVICE_TOKEN>`
+(identical in `animal/.env` and `animal-agent/.env`, at least 32 chars; 401 otherwise). Endpoints: `GET /context`,
+`POST /messages`, `GET /documents/statuses`, `POST /documents/search`, `GET /invoices`. The API does the DB work,
+book-rag search and title/summary generation. Code: `app/routers/v1/agent_internal_router.py` +
+`app/schemas/agent.py` (the agent side is `animal-agent/src/api_client.py` + `src/api_models.py` - change both together).
 
-Requires: the `livekit` container running, matching `LIVEKIT_*` values in API and worker,
-and the speech/LLM keys (`DEEPGRAM_*`, `ELEVENLABS_*`, `ANTHROPIC_*`, `EXA_API_KEY`).
-Without the worker, sessions open but no reply ever arrives.
+For local chat set `LIVEKIT_AGENT_NAME=animal-chat-agent-dev` in `animal/.env` and in `animal-agent/.env`, otherwise
+jobs are split between the cloud and the local agent. The API must be reachable from the internet for a cloud agent
+(deployed URL; for testing: `cloudflared tunnel --url http://localhost:8000`).
 
-Document search in chat additionally needs the [`book-rag`](../book-rag/README.md#http-service-used-by-the-animal-backend) HTTP service.
+Document search in chat additionally needs the [`book-rag`](../book-rag/README.md#http-service-used-by-the-animal-backend) HTTP service (called by the API).
+
+On Windows run the API with `PYTHONUTF8=1` if logs crash with `UnicodeEncodeError` on a cp1251 console.
 
 ---
 
@@ -215,9 +213,9 @@ Document search in chat additionally needs the [`book-rag`](../book-rag/README.m
 
 ```bash
 make install                                                                    # once, after cloning
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init livekit  # start infra
+docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init          # start infra
 make upgrade                                                                    # migrate DB
 make dev                                                                        # terminal 1: API with reload
-poetry run python -m app.livekit_worker.entrypoint dev                          # terminal 2: worker
+(cd ../animal-agent && uv run python -m src.entrypoint dev)                     # terminal 2: agent
 make check && make test                                                         # before committing
 ```

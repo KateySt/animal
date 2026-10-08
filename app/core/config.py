@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import computed_field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -122,16 +122,6 @@ class TestConfig(BaseSettings):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
-class SpeechConfig(BaseSettings):
-    DEEPGRAM_API_KEY: str
-    DEEPGRAM_MODEL: str = "nova-2"
-    ELEVENLABS_API_KEY: str
-    ELEVENLABS_VOICE_ID: str
-    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
-
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-
 class ImageConfig(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_IMAGE_MODEL: str
@@ -147,12 +137,6 @@ class LiveKitConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
-class ExaConfig(BaseSettings):
-    EXA_API_KEY: str
-
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-
 class BookRagConfig(BaseSettings):
     BOOK_RAG_BASE_URL: str
     INTERNAL_SERVICE_TOKEN: str
@@ -163,9 +147,10 @@ class BookRagConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
-@lru_cache
-def get_exa_config() -> ExaConfig:
-    return ExaConfig()
+class AgentConfig(BaseSettings):
+    AGENT_SERVICE_TOKEN: str = Field(min_length=32)
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 @lru_cache
@@ -176,11 +161,6 @@ def get_image_config() -> ImageConfig:
 @lru_cache
 def get_livekit_config() -> LiveKitConfig:
     return LiveKitConfig()
-
-
-@lru_cache
-def get_speech_config() -> SpeechConfig:
-    return SpeechConfig()
 
 
 @lru_cache
@@ -226,3 +206,8 @@ def get_stripe_config() -> StripeConfig:
 @lru_cache
 def get_book_rag_config() -> BookRagConfig:
     return BookRagConfig()
+
+
+@lru_cache
+def get_agent_config() -> AgentConfig:
+    return AgentConfig()

@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.book_rag import search_documents
-from app.core.exa import get_exa_client
 from app.core.exceptions import BookRagUnavailableError
 from app.core.logger import log
 from app.db import DocumentStatus, InvoiceStatus
@@ -61,23 +60,6 @@ async def get_invoices_tool(
     ]
 
     return json.dumps({"invoices": items, "total": round(sum(i["amount"] for i in items), 2)})
-
-
-async def web_search_tool(query: str, num_results: int = 5) -> str:
-    client = get_exa_client()
-
-    response = await client.search_and_contents(query, num_results=num_results, text=True)
-
-    items = [
-        {
-            "title": result.title,
-            "url": result.url,
-            "published_date": result.published_date,
-            "text": result.text
-        }
-        for result in response.results
-    ]
-    return json.dumps({"results": items})
 
 
 async def get_document_statuses(session: AsyncSession, chat_session_id: UUID) -> dict[str, list[str]]:

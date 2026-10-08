@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from app.core import ValidationError, get_anthropic_config
 from app.core.anthropic import generate_summary, generate_title, remove_orphaned_tool_blocks, serialize_transcript
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import NotFoundError
+from app.core.logger import log
 from app.db import MessageRole
 from app.db.models import ChatMessage, ChatSession
 from app.db.models.user import User
@@ -135,10 +137,27 @@ class ChatSessionService:
         await self._session.delete(chat_session)
         await self._session.commit()
 
-    async def create_message(self, session_id: UUID, role: MessageRole, content: Any) -> None:
+    async def create_message(
+            self, session_id: UUID, role: MessageRole, content: Any, created_at: datetime | None = None
+    ) -> None:
         message = ChatMessage(session_id=session_id, role=role, content=content)
+        if created_at is not None:
+            message.created_at = created_at
         self._session.add(message)
         await self._session.commit()
+
+    async def save_agent_message(
+            self, chat_session: ChatSession, role: MessageRole, content: Any, occurred_at: datetime
+    ) -> None:
+        session_id = chat_session.id
+        await self.create_message(session_id, role, content, created_at=occurred_at)
+        if role != MessageRole.user:
+            return
+        try:
+            await self.run_post_message_hooks(chat_session, content)
+        except Exception:
+            log.exception(f"Failed to run post-message hooks for session {session_id}")
+            await self.rollback()
 
     async def rollback(self):
         await self._session.rollback()

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.routers.v1 import (
+    agent_internal_router,
     animal_router,
     anthropic_chat_router,
     auth_router,
@@ -33,3 +34,4 @@ v1_router.include_router(document_router, prefix="/anthropic-chat", tags=["Chat 
 v1_router.include_router(image_router, prefix="/image", tags=["Image"])
 
 v1_router.include_router(internal_router, prefix="/internal", tags=["Internal"])
+v1_router.include_router(agent_internal_router, prefix="/internal/agent", tags=["Internal Agent"])

@@ -24,5 +24,5 @@ async def get_image_from_text(prompt: str) -> bytes:
             raise ImageGenerationUnavailableError() from exc
     try:
         return base64.b64decode(response.json()["data"][0]["b64_json"])
-    except (ValueError, KeyError, IndexError, TypeError) as exc:  # ValueError also covers bad JSON and bad base64
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise ImageGenerationUnavailableError() from exc

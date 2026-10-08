@@ -1,3 +1,4 @@
+import hmac
 import uuid
 from collections.abc import Callable
 
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import get_book_rag_config
+from app.core.config import get_agent_config, get_book_rag_config
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import BadRequestError, ForbiddenError, UnauthorizedError
 from app.core.security import decode_access_token
@@ -110,8 +111,14 @@ async def get_current_user(
 
 
 async def verify_internal_token(x_internal_token: str = Header(...)) -> None:
-    if x_internal_token != get_book_rag_config().INTERNAL_SERVICE_TOKEN:
+    expected = get_book_rag_config().INTERNAL_SERVICE_TOKEN
+    if not expected or not x_internal_token or not hmac.compare_digest(x_internal_token.encode(), expected.encode()):
         raise UnauthorizedError(ErrorCode.INVALID_INTERNAL_TOKEN)
+
+
+async def verify_agent_token(x_agent_token: str = Header(...)) -> None:
+    if not x_agent_token or not hmac.compare_digest(x_agent_token.encode(), get_agent_config().AGENT_SERVICE_TOKEN.encode()):
+        raise UnauthorizedError(ErrorCode.INVALID_AGENT_TOKEN)
 
 
 def validate_document_file(file: UploadFile = File(...)) -> UploadFile:

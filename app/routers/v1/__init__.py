@@ -1,3 +1,4 @@
+from app.routers.v1.agent_internal_router import router as agent_internal_router
 from app.routers.v1.animal_router import router as animal_router
 from app.routers.v1.anthropic_chat_router import router as anthropic_chat_router
 from app.routers.v1.auth_router import router as auth_router

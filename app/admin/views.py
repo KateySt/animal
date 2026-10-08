@@ -97,12 +97,12 @@ class ChatDocumentAdmin(ModelView):
         "filename",
         "content_type",
         "size_bytes",
-        "minio_object_name",
+        "storage_key",
         "status",
         "created_at",
         "updated_at",
     ]
-    exclude_fields_from_list = ["minio_object_name"]
+    exclude_fields_from_list = ["storage_key"]
     searchable_fields = ["filename"]
     sortable_fields = ["filename", "status", "size_bytes", "created_at"]
     fields_default_sort = [("created_at", True)]

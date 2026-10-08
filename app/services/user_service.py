@@ -5,6 +5,7 @@ from sqlalchemy import ScalarResult, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.blob import public_storage
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import AlreadyExistsError, BadRequestError, NotFoundError, UnauthorizedError
 from app.core.security import generate_refresh_token, hash_password
@@ -14,7 +15,6 @@ from app.db.models.permission import Permission
 from app.db.models.resource import Resource
 from app.db.models.user import User
 from app.schemas.user import OAuthAccountCreate, UserCreate, UserInternal, UserRead
-from app.services.minio_service import minio_service
 
 ALLOWED_AVATAR_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
@@ -117,9 +117,9 @@ class UserService:
         object_name = f"avatars/{user.id}/{uuid4().hex}{extension}"
 
         previous_key = user.avatar_key
-        await minio_service.upload_file(object_name, data, content_type)
+        await public_storage.upload_file(object_name, data, content_type)
         if previous_key and previous_key != object_name:
-            await minio_service.delete_file(previous_key)
+            await public_storage.delete_file(previous_key)
 
         user.avatar_key = object_name
         await self._session.commit()
@@ -130,7 +130,7 @@ class UserService:
         if user.avatar_key is None:
             raise NotFoundError(ErrorCode.AVATAR_NOT_FOUND)
 
-        await minio_service.delete_file(user.avatar_key)
+        await public_storage.delete_file(user.avatar_key)
         user.avatar_key = None
         await self._session.commit()
         await self._session.refresh(user)

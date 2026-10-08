@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
-from app.core.config import get_minio_config
+from app.core.blob import public_storage
 from app.schemas.role import RoleRead
 
 
@@ -63,7 +63,7 @@ class UserRead(BaseModel):
     def avatar_url(self) -> str | None:
         if self.avatar_key is None:
             return None
-        return get_minio_config().bucket_url + self.avatar_key
+        return public_storage.public_url(self.avatar_key)
 
 
 class UserUpdate(BaseModel):

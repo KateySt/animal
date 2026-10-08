@@ -5,7 +5,7 @@ animals & health logs, Stripe invoicing, an admin panel, and an AI chat assistan
 (text + voice over LiveKit, image generation, PDF documents via `book-rag`).
 
 **Stack:** FastAPI · SQLAlchemy 2 (async) · asyncpg · PostgreSQL · Alembic ·
-Pydantic v2 · Redis · MinIO · LiveKit (tokens) · Stripe · Poetry · Python 3.12
+Pydantic v2 · Redis · Vercel Blob · LiveKit (tokens) · Stripe · Poetry · Python 3.12
 
 > Running the whole system (API + agent + book-rag + frontend)? See the [root README](../README.md).
 
@@ -19,7 +19,7 @@ agent is a separate project, [`../animal-agent/`](../animal-agent/README.md); it
 
 - **Python 3.12+**
 - **Poetry 2.0+** — dependency & virtualenv manager ([install guide](https://python-poetry.org/docs/#installation))
-- **Docker + Docker Compose** — for PostgreSQL, Redis, MinIO (+ pgAdmin, RedisInsight)
+- **Docker + Docker Compose** — for PostgreSQL, Redis (+ pgAdmin, RedisInsight)
 - **LiveKit Cloud project** — https://cloud.livekit.io, gives `LIVEKIT_URL` / key / secret
 
 Verify Poetry:
@@ -44,8 +44,8 @@ cp .env.sample .env
 # 3. Install dependencies (creates the virtualenv)
 make install          # == poetry install
 
-# 4. Start infrastructure (Postgres, Redis, MinIO)
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init
+# 4. Start infrastructure (Postgres, Redis)
+docker compose -f docker/docker-compose.yml up -d postgres redis
 
 # 5. Apply database migrations
 make upgrade          # == poetry run alembic upgrade head
@@ -107,7 +107,7 @@ Variables by group (`.env.sample` is the source of truth):
 | Google OAuth2 | `GOOGLE_CLIENT_ID` `GOOGLE_CLIENT_SECRET` `GOOGLE_REDIRECT_URI` | |
 | Stripe | `STRIPE_SECRET_KEY` `STRIPE_WEBHOOK_SECRET` | webhook secret comes from `make stripe-webhook` locally |
 | Anthropic | `ANTHROPIC_API_KEY` `ANTHROPIC_MODEL` `ANTHROPIC_MAX_TOKEN` `ANTHROPIC_TITLE_MAX_TOKEN` `ANTHROPIC_SUMMERY_MAX_TOKEN` `SUMMARY_EVERY_N` `RECENT_WINDOW` | chat model, title/summary generation, history window |
-| MinIO | `MINIO_ROOT_USER` `MINIO_ROOT_PASSWORD` `MINIO_ACCESS_KEY` `MINIO_SECRET_KEY` `MINIO_BUCKET_NAME` `MINIO_HOST` `MINIO_REGION` `MINIO_SECURE` | bucket is created on first use; `MINIO_HOST=localhost:9000` |
+| Vercel Blob | `BLOB_READ_WRITE_TOKEN` `BLOB_DOCUMENTS_READ_WRITE_TOKEN` | read-write tokens of the public store (avatars, chat images) and the private store (chat PDFs); used locally too |
 | Agent API | `AGENT_SERVICE_TOKEN` | agent → API auth, at least 32 chars; must equal the agent's (see [Agent internal API](#agent-internal-api)) |
 | OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` | image generation |
 | LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | LiveKit Cloud: `LIVEKIT_URL=wss://<project>.livekit.cloud`; agent name must match the agent's (`animal-chat-agent-dev` locally) |
@@ -126,7 +126,6 @@ Variables by group (`.env.sample` is the source of truth):
 |---|---|---|
 | `postgres` | 5432 | — |
 | `redis` | 6379 | — |
-| `minio` | 9000 (API) / 9001 (console) | http://localhost:9001 |
 | `pgadmin` | 5050 | http://localhost:5050 |
 | `redisinsight` | 5540 | http://localhost:5540 |
 | `animal_fast_api` | 80 | containerised API — **skip it for local dev** |
@@ -134,7 +133,7 @@ Variables by group (`.env.sample` is the source of truth):
 For local development, name the services so the containerised API isn't built and started next to `make dev`:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init   # start (+ pgadmin redisinsight if needed)
+docker compose -f docker/docker-compose.yml up -d postgres redis   # start (+ pgadmin redisinsight if needed)
 docker compose -f docker/docker-compose.yml ps         # status
 docker compose -f docker/docker-compose.yml logs -f    # logs
 docker compose -f docker/docker-compose.yml down       # stop
@@ -211,7 +210,7 @@ On Windows run the API with `PYTHONUTF8=1` if logs crash with `UnicodeEncodeErro
 
 ```bash
 make install                                                                    # once, after cloning
-docker compose -f docker/docker-compose.yml up -d postgres redis minio minio-init          # start infra
+docker compose -f docker/docker-compose.yml up -d postgres redis          # start infra
 make upgrade                                                                    # migrate DB
 make dev                                                                        # terminal 1: API with reload
 (cd ../animal-agent && uv run python -m src.entrypoint dev)                     # terminal 2: agent

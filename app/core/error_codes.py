@@ -86,5 +86,6 @@ class ErrorCode(Enum):
     DOCUMENT_LIMIT_REACHED = ("document_limit_reached", "Maximum number of documents for this chat reached")
     DOCUMENT_SERVICE_UNAVAILABLE = ("document_service_unavailable", "Document search service is temporarily unavailable")
     DOCUMENT_STORAGE_UNAVAILABLE = ("document_storage_unavailable", "Document storage is temporarily unavailable")
+    MEDIA_STORAGE_UNAVAILABLE = ("media_storage_unavailable", "File storage is temporarily unavailable")
     INVALID_INTERNAL_TOKEN = ("invalid_internal_token", "Invalid internal service token")
     INVALID_AGENT_TOKEN = ("invalid_agent_token", "Invalid agent service token")

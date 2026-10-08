@@ -58,6 +58,11 @@ class DocumentStorageUnavailableError(CustomError):
         super().__init__(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
 
 
+class MediaStorageUnavailableError(CustomError):
+    def __init__(self, detail: str | None = None):
+        super().__init__(ErrorCode.MEDIA_STORAGE_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+
 class ImageGenerationUnavailableError(CustomError):
     def __init__(self, detail: str | None = None):
         super().__init__(ErrorCode.IMAGE_GENERATION_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)

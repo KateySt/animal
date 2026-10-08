@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import setup_admin
 from app.core import get_app_config
+from app.core.blob import documents_storage, public_storage
 from app.core.book_rag.client import close_client as close_book_rag_client
 from app.core.config import get_auth_config, get_stripe_config
 from app.core.exceptions import CustomError
@@ -28,6 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_sessionmaker = AsyncSessionLocal
     FastAPICache.init(RedisBackend(redis_service.redis), prefix="fastapi-cache")
     yield
+    await public_storage.close()
+    await documents_storage.close()
     await close_book_rag_client()
     await redis_service.close()
     await engine.dispose()

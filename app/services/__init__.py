@@ -10,7 +10,6 @@ from app.services.health_log_service import HealthLogService
 from app.services.image_service import ImageService
 from app.services.invoice_service import InvoiceService
 from app.services.live_kit_service import create_live_kit_token
-from app.services.minio_service import MinioService, documents_storage, minio_service
 from app.services.permission_service import PermissionService
 from app.services.redis_service import RedisService, redis_service
 from app.services.refresh_token_service import RefreshTokenService

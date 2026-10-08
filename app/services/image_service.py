@@ -3,12 +3,12 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.anthropic import to_ui_history
+from app.core.blob import public_storage
 from app.core.openai.client import get_image_from_text
 from app.db import MessageRole
 from app.db.models.user import User
 from app.schemas.chat import GenerateImageResponse
 from app.services.chat_session_service import ChatSessionService
-from app.services.minio_service import minio_service
 
 
 class ImageService:
@@ -23,8 +23,8 @@ class ImageService:
         image_bytes = await get_image_from_text(description)
         filename = f"{uuid4().hex}.png"
         object_name = f"chat-images/{session_id}/{filename}"
-        await minio_service.upload_file(object_name, image_bytes, "image/png")
-        url = minio_service.public_url(object_name)
+        await public_storage.upload_file(object_name, image_bytes, "image/png")
+        url = public_storage.public_url(object_name)
 
         assistant_content = [
             {"type": "text", "text": "Generated image"},

@@ -1,7 +1,9 @@
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from redis.asyncio import SSLConnection
 
 
 class AppConfig(BaseSettings):
@@ -64,8 +66,21 @@ class RedisConfig(BaseSettings):
     REDIS_PORT: int
     REDIS_USER: str
     REDIS_PASSWORD: str
+    REDIS_SSL: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @property
+    def pool_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "host": self.REDIS_HOST,
+            "port": self.REDIS_PORT,
+            "username": self.REDIS_USER or None,
+            "password": self.REDIS_PASSWORD,
+        }
+        if self.REDIS_SSL:
+            kwargs["connection_class"] = SSLConnection
+        return kwargs
 
 
 class StripeConfig(BaseSettings):

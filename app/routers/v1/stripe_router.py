@@ -12,7 +12,7 @@ from app.services import InvoiceService, get_invoice_service
 router = APIRouter()
 
 
-@router.post("/", response_model=InvoiceWithLogsRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InvoiceWithLogsRead, status_code=status.HTTP_201_CREATED)
 async def create_invoice(
     payload: InvoiceCreate,
     service: InvoiceService = Depends(get_invoice_service),
@@ -21,7 +21,7 @@ async def create_invoice(
     return await service.create(payload)
 
 
-@router.get("/", response_model=list[InvoiceWithLogsRead])
+@router.get("", response_model=list[InvoiceWithLogsRead])
 async def list_all_invoices(
         service: InvoiceService = Depends(get_invoice_service),
         _: Principal = Depends(require_roles("vet")),

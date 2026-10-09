@@ -102,7 +102,7 @@ Variables by group (`.env.sample` is the source of truth):
 | PostgreSQL | `DB_NAME` `DB_USER` `DB_PASSWORD` `DB_HOST` `DB_PORT` `DB_ECHO` | also used by the compose `postgres` service |
 | Redis | `REDIS_HOST` `REDIS_PORT` `REDIS_USER` `REDIS_PASSWORD` | cache, permissions version |
 | Auth | `ACCESS_TOKEN_SECRET` `JWT_ALGORITHM` `ACCESS_TOKEN_TIME_MINUTES` `REFRESH_TOKEN_TIME_DAYS` `COOKIE_SECURE` `COOKIE_DOMAIN` | `COOKIE_SECURE` defaults to `true`; set `false` only if your browser drops the refresh cookie over plain HTTP |
-| Admin | `ADMIN_SECRET` `SUPERUSER_EMAIL` `SUPERUSER_PASSWORD` | starlette-admin + bootstrap superuser |
+| Admin | `ADMIN_SECRET` | starlette-admin session secret; login requires a user with `is_superuser=true` in the DB |
 | Frontend | `CORS_ORIGINS` `FRONTEND_URL` | e.g. `http://localhost:5173` |
 | Google OAuth2 | `GOOGLE_CLIENT_ID` `GOOGLE_CLIENT_SECRET` `GOOGLE_REDIRECT_URI` | |
 | Stripe | `STRIPE_SECRET_KEY` `STRIPE_WEBHOOK_SECRET` | webhook secret comes from `make stripe-webhook` locally |

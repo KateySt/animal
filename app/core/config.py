@@ -44,9 +44,6 @@ class AuthConfig(BaseSettings):
 
     ADMIN_SECRET: str
 
-    SUPERUSER_EMAIL: str
-    SUPERUSER_PASSWORD: str
-
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from livekit.api import (
     AccessToken,
@@ -15,7 +15,7 @@ from app.schemas.livekit import LiveKitTokenResponse
 
 async def create_live_kit_token(session_id: UUID, user: User) -> LiveKitTokenResponse:
     config = get_livekit_config()
-    room_name = f"chat-{session_id}"
+    room_name = f"chat-{session_id}-{uuid4().hex[:8]}"
 
     token = (
         AccessToken(config.LIVEKIT_API_KEY, config.LIVEKIT_API_SECRET)

@@ -111,7 +111,7 @@ Variables by group (`.env.sample` is the source of truth):
 | Agent API | `AGENT_SERVICE_TOKEN` | agent → API auth, at least 32 chars; must equal the agent's (see [Agent internal API](#agent-internal-api)) |
 | OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` | image generation |
 | LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | LiveKit Cloud: `LIVEKIT_URL=wss://<project>.livekit.cloud`; agent name must match the agent's (`animal-chat-agent-dev` locally) |
-| book-rag | `BOOK_RAG_BASE_URL` `INTERNAL_SERVICE_TOKEN` `BOOK_RAG_MAX_UPLOAD_SIZE_BYTES` `BOOK_RAG_MAX_DOCUMENTS_PER_SESSION` `BOOK_RAG_REQUEST_TIMEOUT_SECONDS` | token must equal book-rag's `INTERNAL_SERVICE_TOKEN` |
+| book-rag | `BOOK_RAG_BASE_URL` `INTERNAL_SERVICE_TOKEN` `BOOK_RAG_MAX_UPLOAD_SIZE_BYTES` `BOOK_RAG_MAX_DOCUMENTS_PER_SESSION` `BOOK_RAG_REQUEST_TIMEOUT_SECONDS` | token must equal book-rag's `INTERNAL_SERVICE_TOKEN`; with book-rag on Vercel set `BOOK_RAG_REQUEST_TIMEOUT_SECONDS=60` (cold container start) |
 
 > When running the API on the host and the database in Docker, set `DB_HOST=localhost`
 > and `REDIS_HOST=localhost` (the container ports are published to your machine).

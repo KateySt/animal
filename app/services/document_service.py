@@ -29,7 +29,6 @@ class DocumentService:
 
     @staticmethod
     def _safe_object_filename(filename: str) -> str:
-        # The original name stays in ChatDocument.filename; the object key only needs to be readable and safe
         name = _UNSAFE_FILENAME_CHARS.sub("_", PurePath(filename).name).strip("._")
         return name[:100] or "document"
 
@@ -107,5 +106,6 @@ class DocumentService:
         except Exception:
             document.failed()
             await self.session.commit()
+            await self.session.refresh(document)
 
         return document

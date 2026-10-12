@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -124,8 +124,16 @@ class TestConfig(BaseSettings):
 
 
 class ImageConfig(BaseSettings):
-    OPENAI_API_KEY: str
+    OPENAI_API_KEY: SecretStr
     OPENAI_IMAGE_MODEL: str
+    OPENAI_IMAGE_SIZE: str = "1024x1024"
+    OPENAI_IMAGE_QUALITY: Literal["low", "medium", "high", "auto"] = "medium"
+    OPENAI_IMAGE_FORMAT: Literal["jpeg", "webp", "png"] = "jpeg"
+    OPENAI_IMAGE_COMPRESSION: int = Field(85, ge=0, le=100)
+    OPENAI_IMAGE_PARTIALS: int = Field(2, ge=0, le=3)
+    OPENAI_TIMEOUT_SECONDS: float = 90.0
+    OPENAI_MAX_RETRIES: int = 2
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

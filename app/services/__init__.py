@@ -1,6 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.openai import ImageGenerator, image_generator
 from app.db import get_db_session
 from app.services.animal_service import AnimalService
 from app.services.auth_service import AuthService
@@ -66,11 +67,16 @@ def get_chat_session_service(session: AsyncSession = Depends(get_db_session)) ->
     return ChatSessionService(session)
 
 
+def get_image_generator() -> ImageGenerator:
+    return image_generator
+
+
 def get_image_service(
     session: AsyncSession = Depends(get_db_session),
     session_service: ChatSessionService = Depends(get_chat_session_service),
+    generator: ImageGenerator = Depends(get_image_generator),
 ) -> ImageService:
-    return ImageService(session, session_service)
+    return ImageService(session, session_service, generator)
 
 
 def get_document_service(

@@ -109,7 +109,7 @@ Variables by group (`.env.sample` is the source of truth):
 | Anthropic | `ANTHROPIC_API_KEY` `ANTHROPIC_MODEL` `ANTHROPIC_MAX_TOKEN` `ANTHROPIC_TITLE_MAX_TOKEN` `ANTHROPIC_SUMMERY_MAX_TOKEN` `SUMMARY_EVERY_N` `RECENT_WINDOW` | chat model, title/summary generation, history window |
 | Vercel Blob | `BLOB_READ_WRITE_TOKEN` `BLOB_DOCUMENTS_READ_WRITE_TOKEN` | read-write tokens of the public store (avatars, chat images) and the private store (chat PDFs); used locally too |
 | Agent API | `AGENT_SERVICE_TOKEN` | agent → API auth, at least 32 chars; must equal the agent's (see [Agent internal API](#agent-internal-api)) |
-| OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` | image generation |
+| OpenAI | `OPENAI_API_KEY` `OPENAI_IMAGE_MODEL` `OPENAI_IMAGE_SIZE` `OPENAI_IMAGE_QUALITY` `OPENAI_IMAGE_FORMAT` `OPENAI_IMAGE_COMPRESSION` `OPENAI_IMAGE_PARTIALS` `OPENAI_TIMEOUT_SECONDS` `OPENAI_MAX_RETRIES` | image generation, streamed with partial previews; model must be a `gpt-image-*` model (streaming). Defaults: `1024x1024`, `medium`, `jpeg`, `85`, `2` partials, `90` s timeout, `2` SDK retries |
 | LiveKit | `LIVEKIT_URL` `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` `LIVEKIT_AGENT_NAME` | LiveKit Cloud: `LIVEKIT_URL=wss://<project>.livekit.cloud`; agent name must match the agent's (`animal-chat-agent-dev` locally) |
 | book-rag | `BOOK_RAG_BASE_URL` `INTERNAL_SERVICE_TOKEN` `BOOK_RAG_MAX_UPLOAD_SIZE_BYTES` `BOOK_RAG_MAX_DOCUMENTS_PER_SESSION` `BOOK_RAG_REQUEST_TIMEOUT_SECONDS` | token must equal book-rag's `INTERNAL_SERVICE_TOKEN`; with book-rag on Vercel set `BOOK_RAG_REQUEST_TIMEOUT_SECONDS=60` (cold container start) |
 

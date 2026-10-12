@@ -20,6 +20,20 @@ class GenerateImageResponse(BaseModel):
     messages: list[dict[str, Any]]
 
 
+class ImagePartialEvent(BaseModel):
+    index: int
+    b64: str
+    media_type: str
+
+
+class ImageStreamError(BaseModel):
+    detail: str
+    error_code: str | None
+
+
+ImageStreamEvent = ImagePartialEvent | GenerateImageResponse | ImageStreamError
+
+
 class ChatSessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

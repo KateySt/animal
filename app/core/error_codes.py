@@ -78,6 +78,7 @@ class ErrorCode(Enum):
     CHAT_STREAMING_ERROR = ("chat_streaming_error", "Failed to stream chat response")
     CHAT_OWNER_NOT_MATCH = ("chat_owner_not_match", "Not your chat session")
     IMAGE_GENERATION_UNAVAILABLE = ("image_generation_unavailable", "Image generation service is temporarily unavailable")
+    IMAGE_PROMPT_REJECTED = ("image_prompt_rejected", "The image description was rejected by the content policy")
 
     # Chat documents / RAG
     DOCUMENT_NOT_FOUND = ("document_not_found", "Document not found")

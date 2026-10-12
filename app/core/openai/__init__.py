@@ -1,1 +1,1 @@
-from app.core.openai.client import get_image_from_text
+from app.core.openai.client import ImageCompleted, ImageEvent, ImageGenerator, ImagePartial, image_generator

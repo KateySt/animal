@@ -66,3 +66,8 @@ class MediaStorageUnavailableError(CustomError):
 class ImageGenerationUnavailableError(CustomError):
     def __init__(self, detail: str | None = None):
         super().__init__(ErrorCode.IMAGE_GENERATION_UNAVAILABLE, status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
+
+
+class ImagePromptRejectedError(CustomError):
+    def __init__(self, detail: str | None = None):
+        super().__init__(ErrorCode.IMAGE_PROMPT_REJECTED, status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)

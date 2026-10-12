@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -144,6 +144,14 @@ class ChatSessionService:
         if created_at is not None:
             message.created_at = created_at
         self._session.add(message)
+        await self._session.commit()
+
+    async def create_messages(self, session_id: UUID, rows: list[tuple[MessageRole, Any]]) -> None:
+        now = datetime.now(UTC)
+        self._session.add_all(
+            ChatMessage(session_id=session_id, role=role, content=content, created_at=now + timedelta(microseconds=offset))
+            for offset, (role, content) in enumerate(rows)
+        )
         await self._session.commit()
 
     async def save_agent_message(

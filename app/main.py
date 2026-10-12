@@ -16,6 +16,7 @@ from app.core.book_rag.client import close_client as close_book_rag_client
 from app.core.config import get_auth_config, get_stripe_config
 from app.core.exceptions import CustomError
 from app.core.middleware import UnhandledErrorMiddleware
+from app.core.openai import image_generator
 from app.db.session import AsyncSessionLocal, engine
 from app.routers import v1_router
 from app.services.redis_service import redis_service
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     await public_storage.close()
     await documents_storage.close()
+    await image_generator.close()
     await close_book_rag_client()
     await redis_service.close()
     await engine.dispose()
